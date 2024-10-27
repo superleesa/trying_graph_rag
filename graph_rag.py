@@ -1,7 +1,7 @@
 import networkx as nx
 import torch
 from sentence_transformers import SentenceTransformer
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, AutoModelForCausalLM
 
 # Initialize graph and documents
 graph = nx.Graph()
@@ -20,14 +20,12 @@ retriever = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 doc_texts = list(documents.values())
 document_embeddings = retriever.encode(doc_texts, convert_to_tensor=True)
 
-# Initialize the generator model and tokenizer
-generator_model = "facebook/bart-large-cnn"
-generator = AutoModelForSeq2SeqLM.from_pretrained(generator_model)
-tokenizer = AutoTokenizer.from_pretrained(generator_model)
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
+generator = AutoModelForCausalLM.from_pretrained("google/gemma-2b")
 
 # Define function to get relationship using the generator model
 def get_relationship(doc1_text, doc2_text):
-    prompt = f"Determine if there is a relationship between the following two texts, and if so, describe it:\n\nText 1: {doc1_text}\n\nText 2: {doc2_text}\n\nIf they are related, explain the relationship briefly. If they are unrelated, respond with 'No meaningful connection.'"
+    prompt = f"Determine if there is a relationship between the following two texts, and if so, describe why:\n\nText 1: {doc1_text}\n\nText 2: {doc2_text}\n\nIf they are related, explain the relationship briefly. If they are unrelated, just respond with 'No meaningful connection.'"
     
     # Tokenize prompt and generate response
     inputs = tokenizer(prompt, return_tensors="pt", max_length=512, truncation=True)
