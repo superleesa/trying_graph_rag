@@ -1,13 +1,12 @@
 import torch
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
 import faiss
 
 # Load the dense retriever and the generative model
 retriever = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-generator_model = "facebook/bart-large-cnn"
-generator = AutoModelForSeq2SeqLM.from_pretrained(generator_model)
-tokenizer = AutoTokenizer.from_pretrained(generator_model)
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
+generator = AutoModelForCausalLM.from_pretrained("google/gemma-2b")
 
 # Define a small corpus of documents for retrieval
 documents = [
