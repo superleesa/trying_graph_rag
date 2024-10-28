@@ -1,7 +1,6 @@
 import networkx as nx
-import torch
 from sentence_transformers import SentenceTransformer
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 # Initialize graph and documents
 graph = nx.Graph()
@@ -21,7 +20,7 @@ doc_texts = list(documents.values())
 document_embeddings = retriever.encode(doc_texts, convert_to_tensor=True)
 
 tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
-generator = AutoModelForCausalLM.from_pretrained("google/gemma-2b")
+generator = AutoModelForCausalLM.from_pretrained("google/gemma-2b", load_in_4bit=True)
 
 # Define function to get relationship using the generator model
 def get_relationship(doc1_text, doc2_text):
