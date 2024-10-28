@@ -1,45 +1,53 @@
-from transformers import AutoTokenizer
-from sentence_transformers import SentenceTransformer
-import faiss
+import json
+import re
 import ollama
 
-# Load the dense retriever
-retriever = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-# Define a small corpus of documents for retrieval
-documents = [
-    "Python is a popular programming language.",
-    "RAG combines retrieval with generation to produce more accurate answers.",
-    "Transformers are deep learning models used for NLP tasks.",
-    "PyTorch is a deep learning library often used with transformers.",
-    # Add more documents as needed
-]
+def generate_answer_ollama(query, context_text):
+    # Use Ollama to generate the answer based on query and context
+    input_text = f"Question: {query} Context: {context_text}"
+    response = ollama.generate(model="gemma2:2b", prompt=input_text)  # Adjust model name as necessary
+    return response['response']  # Assuming response contains the generated answer in 'response'
 
-# Encode the documents into embeddings
-document_embeddings = retriever.encode(documents, convert_to_tensor=True)
+# Define the relevance function to identify supporting facts
+def model_decides_sentence_is_relevant(sentence, answer):
+    # Simple keyword matching for relevance (adjust if necessary)
+    sentence_words = set(re.findall(r'\w+', sentence.lower()))
+    answer_words = set(re.findall(r'\w+', answer.lower()))
+    return len(sentence_words & answer_words) > 0
 
-# Create an FAISS index for similarity search
-d = document_embeddings.shape[1]  # Dimensionality of embeddings
-index = faiss.IndexFlatL2(d)
-index.add(document_embeddings.cpu().detach().numpy())  # Adding to the index
+# Load test data
+with open('/Users/sho/Monash/FIT5047/project/chunking_strategies/sampled_gold_data.json', 'r') as f:
+    test_data = json.load(f)
 
-def retrieve_documents(query, k=3):
-    query_embedding = retriever.encode([query], convert_to_tensor=True)
-    _, indices = index.search(query_embedding.cpu().detach().numpy(), k)
-    retrieved_docs = [documents[idx] for idx in indices[0]]
-    return " ".join(retrieved_docs)
+# Initialize predictions dictionary
+predictions = {"answer": {}, "sp": {}}
 
-def generate_answer_ollama(query, retrieved_docs):
-    input_text = f"{query} Context: {retrieved_docs}"
-    response = ollama.generate(model="gemma2:2b", prompt=input_text)  # Specify model name here if different in Ollama
-    generated_answer = response['response']
-    return generated_answer
+# Process each item in test data
+for item in test_data:
+    question_id = item["_id"]
+    question_text = item["question"]
+    context = item["context"]
 
-# Example usage
-query = "How does RAG work?"
-retrieved_docs = retrieve_documents(query)
-generated_answer = generate_answer_ollama(query, retrieved_docs)
+    # Concatenate all context sentences for model input
+    context_text = " ".join(" ".join(sentences) for _, sentences in context)
 
-print("Query:", query)
-print("Retrieved Documents:", retrieved_docs)
-print("Generated Answer:", generated_answer)
+    # Generate answer based on question and context
+    answer = generate_answer_ollama(question_text, context_text)
+
+    # Identify supporting facts
+    supporting_facts = []
+    for title, sentences in context:
+        for sent_id, sentence in enumerate(sentences):
+            if model_decides_sentence_is_relevant(sentence, answer):
+                supporting_facts.append([title, sent_id])
+
+    # Store predictions in the required format
+    predictions["answer"][question_id] = answer
+    predictions["sp"][question_id] = supporting_facts
+
+# Save predictions to file
+with open("dev_distractor_pred.json", "w") as f:
+    json.dump(predictions, f, indent=4)
+
+print("Predictions saved to dev_distractor_pred.json")
