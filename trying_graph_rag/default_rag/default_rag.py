@@ -36,7 +36,7 @@ def retrieve_documents(query, context_sentences, k=3):
 
 def generate_answer_ollama(query, retrieved_docs):
     """Generates an answer using Ollama's model."""
-    input_text = f"{query} Context: {retrieved_docs}"
+    input_text = f"{query} Provide only a direct answer based strictly on the provided information. Do not refer to external sources. Context: {retrieved_docs}"
     response = ollama.generate(model="gemma2:2b", prompt=input_text)  # Specify model name here if different in Ollama
     generated_answer = response['response']
     return generated_answer
