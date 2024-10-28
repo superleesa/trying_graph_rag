@@ -1,0 +1,66 @@
+**Goal:**
+Extract entities of specified types from the text and identify relationships among them.
+
+**Instructions:**
+
+1. **Entity Extraction:**
+   - For each entity, provide:
+     - **entity_name**: Capitalized name
+     - **entity_type**: One of [{entity_types}]
+     - **entity_description**: Description of attributes and activities
+   - Format:
+     ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
+
+2. **Relationship Identification:**
+   - For each pair of related entities:
+     - **source_entity**: Name from step 1
+     - **target_entity**: Name from step 1
+     - **relationship_description**: Explanation of their connection
+     - **relationship_strength**: Numeric score of relationship strength
+   - Format:
+     ("relationship"{tuple_delimiter}<source_entity>{tuple_delimiter}<target_entity>{tuple_delimiter}<relationship_description>{tuple_delimiter}<relationship_strength>)
+
+3. **Output:**
+   - Provide a single list of all entities and relationships.
+   - Use **{record_delimiter}** as the list delimiter.
+   - End with {completion_delimiter}
+
+---
+
+**Examples:**
+
+*Example 1:*
+
+Entity_types: [person, technology, mission, organization, location]
+
+Text:
+*While Alex clenched his jaw, the buzz of frustration...*
+
+Output:
+("entity"{tuple_delimiter}"Alex"{tuple_delimiter}"person"{tuple_delimiter}"Alex is frustrated and observant of others."){record_delimiter}
+("entity"{tuple_delimiter}"Taylor"{tuple_delimiter}"person"{tuple_delimiter}"Taylor shows authoritarian certainty..."){record_delimiter}
+("relationship"{tuple_delimiter}"Alex"{tuple_delimiter}"Taylor"{tuple_delimiter}"Alex is affected by Taylor's attitude."{tuple_delimiter}7){completion_delimiter}
+
+---
+
+*Example 2:*
+
+Entity_types: [person, technology, mission, organization, location]
+
+Text:
+*They were no longer mere operatives...*
+
+Output:
+("entity"{tuple_delimiter}"Operation: Dulce"{tuple_delimiter}"mission"{tuple_delimiter}"A mission that has evolved to interact and prepare."){record_delimiter}
+("relationship"{tuple_delimiter}"The team"{tuple_delimiter}"Operation: Dulce"{tuple_delimiter}"The team is involved in Operation: Dulce."{tuple_delimiter}9){completion_delimiter}
+
+---
+
+**Real Data:**
+
+Entity_types: {entity_types}
+
+Text: {input_text}
+
+Output:
+"""```
