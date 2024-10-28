@@ -7,6 +7,12 @@ class Entity(BaseModel):
     description: str
 
 
+class UniqueEntity(BaseModel):
+    name: str
+    type: str
+    summary: str
+
+
 class Relationship(BaseModel):
     source_entity: str
     target_entity: str

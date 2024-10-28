@@ -1,14 +1,21 @@
-import networkx as nx
+import random
 
 import ollama
 from graspologic.partition import hierarchical_leiden
+import networkx as nx
+from transformers import AutoTokenizer
 
-from trying_graph_rag.graph_rag.types import Entity, Relationship
+from trying_graph_rag.graph_rag.types import Entity, Relationship, UniqueEntity
 
 
 with open("../trying_graph_rag/graph_rag/prompts/entities_and_relationships_extraction.txt") as file:
-    PROMPT = file.read()
+    ENTITIES_AND_RELATIONSHIPS_EXTRACTION_PROMPT = file.read()
 
+with open("../trying_graph_rag/graph_rag/prompts/summarize_entities.txt") as file:
+    SUMMARIZE_ENTITIES_PROMPT = file.read()
+    
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b-it")
+SUMMARIZA_ENTITIES_PROMPT_LENGTH = len(tokenizer(SUMMARIZE_ENTITIES_PROMPT.format(entity_name="", description_list=""))["input_ids"])
 
 def extract_entities_and_relations(document: str, entity_types: list[str], tuple_delimiter: str = r'<>', record_delimiter: str = '\n', completion_delimiter: str = '###END###') -> tuple[list[Entity], list[Relationship]]:
     """
@@ -64,16 +71,33 @@ def extract_entities_and_relations(document: str, entity_types: list[str], tuple
         
         return entities, relationships
     
-    ollama_response = ollama.generate(model='gemma2:2b', prompt=PROMPT.format(input_text=document, entity_types=str(entity_types)[1:-1], tuple_delimiter=tuple_delimiter, record_delimiter=record_delimiter, completion_delimiter=completion_delimiter), options={"temperature": 0})
+    ollama_response = ollama.generate(model='gemma2:2b', prompt=ENTITIES_AND_RELATIONSHIPS_EXTRACTION_PROMPT.format(input_text=document, entity_types=str(entity_types)[1:-1], tuple_delimiter=tuple_delimiter, record_delimiter=record_delimiter, completion_delimiter=completion_delimiter), options={"temperature": 0})
     
     content = ollama_response['response']
     return parse_output(content, tuple_delimiter, record_delimiter, completion_delimiter)
  
 
-def summarize_entities(entities: list[dict]) -> str:
-    # basically you just put description of all entities into llm
-    # TODO: look for a prompt that summarizes entities in the graph rag repo
-    pass
+def summarize_grouped_entities(entities: list[Entity]) -> UniqueEntity:
+    entity_name = entities[0].name
+    entity_type = entities[0].type
+    
+    shuffled_entities = random.sample(entities, len(entities))  # shuffle to avoid bias
+    descriptions = [entity.description for entity in shuffled_entities]
+    
+    # need to enusure that all the entity decription fit within the llm context length
+    # gemma2:2b has a context length of 8k (8192 tokens)
+    total_tokens = SUMMARIZA_ENTITIES_PROMPT_LENGTH
+    selected_descriptions = []
+    for description in descriptions:
+        total_tokens += len(tokenizer(description)["input_ids"]) + 2  # +2 for the comma and space
+        if total_tokens > 8192:
+            break
+        
+        selected_descriptions.append(description)
+    
+    concatenated_descriptions = ', '.join(selected_descriptions)
+    ollama_response = ollama.generate(model='gemma2:2b', prompt=SUMMARIZE_ENTITIES_PROMPT.format(entity_name=entity_name, description_list=concatenated_descriptions), options={"temperature": 0})['response']
+    return UniqueEntity(name=entity_name, type=entity_type, summary=ollama_response["response"])
 
 
 def summarize_communities(communities: list[dict]) -> str:
@@ -96,16 +120,21 @@ def create_communities(graph: nx.Graph, threshold: float) -> dict[int, dict[str,
     return results
 
 
-def merge_entities(entities: list[dict]) -> dict:
-    pass
+def merge_same_name_entities(entities: list[Entity]) -> dict[str, list[Entity]]:
+    enity_name_to_entities: dict[str, list[Entity]] = {}
+    
+    for entity in entities:
+        key = entity.name+entity.type
+        enity_name_to_entities[key] = enity_name_to_entities.get(key, [])
+        enity_name_to_entities[key].append(entity)
 
 
 def create_index(documents: list[str]) -> None:
     
     entities, relationships = zip([extract_entities_and_relations(doc) for doc in documents])  # i think entities should keep track of original document
     # for now ignore relationships
-    entities = merge_entities(entities)
-    entity_summaries = summarize_entities(entities)  # maybe the entities themselves should have a summary
+    grouped_entities = merge_same_name_entities(entities)
+    unique_entities = [summarize_grouped_entities(entities) for _, entities in grouped_entities]  # maybe the entities themselves should have a summary
     
     # create a graph of entities
     graph = nx.Graph()
@@ -119,7 +148,7 @@ def create_index(documents: list[str]) -> None:
     # store the index
     index = {
         "entities": entities,
-        "entity_summaries": entity_summaries,
+        "entity_summaries": unique_entities,
         "communities": communities_in_hierachy
     }
     
