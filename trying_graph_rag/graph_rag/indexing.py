@@ -88,8 +88,8 @@ def summarize_grouped_entities(entities: list[Entity]) -> UniqueEntity:
     # gemma2:2b has a context length of 8k (8192 tokens)
     total_tokens = SUMMARIZA_ENTITIES_PROMPT_LENGTH
     selected_descriptions = []
-    for description in descriptions:
-        total_tokens += len(tokenizer(description)["input_ids"]) + 2  # +2 for the comma and space
+    for i, description in enumerate(descriptions):
+        total_tokens += len(tokenizer(description)["input_ids"]) + (2 if i != len(descriptions)-1 else 0)  # +2 for the comma and space
         if total_tokens > 8192:
             break
         
