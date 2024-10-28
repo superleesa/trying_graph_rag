@@ -1,2 +1,3 @@
 .mypy_cache/
 trying_graph_rag.egg-info/
+__pycache__
