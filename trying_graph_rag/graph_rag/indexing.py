@@ -41,9 +41,9 @@ def extract_entities_and_relations(document: str, entity_types: list[str], tuple
             
             if record_type == 'entity' and len(record_content) == 4:
                 entity = Entity(
-                    entity_name=record_content[1],
-                    entity_type=record_content[2],
-                    entity_description=record_content[3]
+                    name=record_content[1],
+                    type=record_content[2],
+                    description=record_content[3]
                 )
                 entities.append(entity)
             elif record_type == 'relationship' and len(record_content) == 5:
@@ -55,8 +55,8 @@ def extract_entities_and_relations(document: str, entity_types: list[str], tuple
                 relationship = Relationship(
                     source_entity=record_content[1],
                     target_entity=record_content[2],
-                    relationship_description=record_content[3],
-                    relationship_strength=relationship_strength
+                    description=record_content[3],
+                    strength=relationship_strength
                 )
                 relationships.append(relationship)
             else:
