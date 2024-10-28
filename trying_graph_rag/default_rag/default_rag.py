@@ -1,11 +1,10 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer
 from sentence_transformers import SentenceTransformer
 import faiss
+import ollama
 
-# Load the dense retriever and the generative model
+# Load the dense retriever
 retriever = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
-generator = AutoModelForCausalLM.from_pretrained("google/gemma-2b")
 
 # Define a small corpus of documents for retrieval
 documents = [
@@ -30,16 +29,16 @@ def retrieve_documents(query, k=3):
     retrieved_docs = [documents[idx] for idx in indices[0]]
     return " ".join(retrieved_docs)
 
-def generate_answer(query, retrieved_docs):
+def generate_answer_ollama(query, retrieved_docs):
     input_text = f"{query} Context: {retrieved_docs}"
-    inputs = tokenizer(input_text, return_tensors="pt", max_length=512, truncation=True)
-    summary_ids = generator.generate(inputs["input_ids"], max_length=150, min_length=30, length_penalty=2.0, num_beams=4, early_stopping=True)
-    return tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+    response = ollama.generate(model="gemma2:2b", prompt=input_text)  # Specify model name here if different in Ollama
+    generated_answer = response['response']
+    return generated_answer
 
 # Example usage
 query = "How does RAG work?"
 retrieved_docs = retrieve_documents(query)
-generated_answer = generate_answer(query, retrieved_docs)
+generated_answer = generate_answer_ollama(query, retrieved_docs)
 
 print("Query:", query)
 print("Retrieved Documents:", retrieved_docs)
