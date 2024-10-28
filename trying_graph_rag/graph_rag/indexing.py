@@ -129,17 +129,36 @@ def merge_same_name_entities(entities: list[Entity]) -> dict[str, list[Entity]]:
         enity_name_to_entities[key].append(entity)
 
 
+def create_graph(entities: list[UniqueEntity], relationships: list[Relationship]) -> nx.Graph:
+    #　FIXME: this ignores the type of the entity
+    
+    # use index within the entities list as the node id
+    entity_to_id = {entity.name: i for i, entity in enumerate(entities)}
+    graph_temp = [[0 for _ in range(len(entities))] for _ in range(len(entities))]
+    for relationship in relationships:
+        source_id = entity_to_id[relationship.source_entity]
+        target_id = entity_to_id[relationship.target_entity]
+        strength = relationship.strength
+        graph_temp[source_id][target_id] += strength
+        graph_temp[target_id][source_id] += strength
+    
+    graph = nx.Graph()
+    graph.add_nodes_from([entity.name for entity in entities])
+    for source_id in range(len(entities)):
+        for target_id in range(source_id, len(entities)):
+            if graph_temp[source_id][target_id] > 0:
+                graph.add_edge(entities[source_id].name, entities[target_id].name, strength=graph_temp[source_id][target_id])
+    
+    return graph
+
+
 def create_index(documents: list[str]) -> None:
     
     entities, relationships = zip([extract_entities_and_relations(doc) for doc in documents])  # i think entities should keep track of original document
     # for now ignore relationships
     grouped_entities = merge_same_name_entities(entities)
     unique_entities = [summarize_grouped_entities(entities) for _, entities in grouped_entities]  # maybe the entities themselves should have a summary
-    
-    # create a graph of entities
-    graph = nx.Graph()
-    graph.add_nodes_from(entities)
-    graph.add_edges_from(relationships)
+    graph = create_graph(unique_entities, relationships)
     
     # TODO: create communities but with different hierarchies
     possible_hierarchy_levels = 3
