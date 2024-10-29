@@ -67,10 +67,10 @@ def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery]
         output_json = json.loads(ollama_response)
         return output_json["Exact Answer"], output_json["Explanation"]
     
-    non_zero_relevance_pairs = [relevant_point for relevant_point in relevant_points if relevant_point.score > 0]
-    top_n = min(top_n, len(non_zero_relevance_pairs))
+    non_zero_relevance_points = [relevant_point for relevant_point in relevant_points if relevant_point.score > 0]
+    top_n = min(top_n, len(non_zero_relevance_points))
     
-    sorted_relevant_points = sorted(non_zero_relevance_pairs, key=lambda x: x[1], reverse=True)
+    sorted_relevant_points = sorted(non_zero_relevance_points, key=lambda x: x.score, reverse=True)
     top_n_relevant_points = sorted_relevant_points[:top_n]
     top_n_relevant_points_stringified = [relevant_point.model_dump_json() for relevant_point in top_n_relevant_points]
     fittable_relevant_points = filter_non_fittable_elements(top_n_relevant_points_stringified, max_length=7000-DEFAULT_REDUCTION_PROMPT_LENGTH, delimiter="\n")  # allocate about 1000 tokens for the output
