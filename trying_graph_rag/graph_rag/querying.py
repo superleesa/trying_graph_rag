@@ -1,8 +1,15 @@
 import json
+import logging
 from pathlib import Path
 
 from trying_graph_rag.graph_rag.types import GraphIndex, RelevantPointToQuery, SummarizedCommunity
 from trying_graph_rag.utils import filter_non_fittable_elements, flatten, generate_ollama_response
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+file_handler = logging.FileHandler("generated_contents.log")
+file_handler.setLevel(logging.INFO)
+logger.addHandler(file_handler)
 
 PROMPT_DIR = Path(__file__).parent / "prompts"
 
@@ -36,6 +43,7 @@ def map_query_to_community(
     ollama_response = generate_ollama_response(
         prompt=MAP_PROMPT.format(query=query, community_report=formatted_community_report),
     )
+    logger.info(f"Generated relavant points: {ollama_response}")
 
     discovered_points = parse_output(ollama_response)
 
@@ -64,6 +72,7 @@ def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery]
             relevant_points=concatenated_relevant_points,
         ),
     )
+    logger.info(f"Generated final answer: {ollama_response}")
 
     return ollama_response
 
