@@ -19,6 +19,10 @@ from trying_graph_rag.graph_rag.types import (
 )
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+file_handler = logging.FileHandler('generated_contents.log')
+file_handler.setLevel(logging.INFO)
+logger.addHandler(file_handler)
 
 PROMPT_DIR = Path(__file__).parent / "prompts"
 
