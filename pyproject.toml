@@ -17,6 +17,8 @@ dependencies = [
     "sentence-transformers",
     "networkx",
     "graspologic",
+    "fire",
+    "future",
 ]
 
 [tool.ruff]
