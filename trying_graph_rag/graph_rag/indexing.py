@@ -60,11 +60,14 @@ def extract_entities_and_relations(
         record_delimiter: str = "\n",
         completion_delimiter: str = "###END###",
     ) -> tuple[list[Entity], list[Relationship]]:
-        output = output.replace(completion_delimiter, "")
+        # sometimes there is extra content after the completion token so remove all of them
+        output = output[: output.find(completion_delimiter)]
+        
         records = output.strip().split(record_delimiter)
 
-        entities: list[Entity] = []
+        entities: list[Entity] = []  # TODO: this is not really needed use `entity_name_to_entities` instead
         relationships: list[Relationship] = []
+        entity_name_to_entities: dict[str, Entity] = {}
 
         for idx, record in enumerate(records):
             record = record.strip().lstrip("(").rstrip(")")
@@ -88,18 +91,45 @@ def extract_entities_and_relations(
                 raise ValueError(f"Invalid record type: {record_content}")
 
             if record_type == "entity" and len(record_content) == 4:
-                entity = Entity(name=record_content[1], type=record_content[2], description=record_content[3])
+                entity_name = record_content[1].strip()
+
+                # skip duplicate entities
+                if entity_name in entity_name_to_entities:
+                    if entity_name_to_entities[entity_name].type == "UNKNOWN":
+                        # an empty entity might have been added already from relationship
+                        entity_name_to_entities[entity_name].type = record_content[2]
+                        entity_name_to_entities[entity_name].description = record_content[3]
+                    continue
+
+                entity = Entity(name=entity_name, type=record_content[2], description=record_content[3])
                 entities.append(entity)
+                entity_name_to_entities[entity_name] = entity
             elif record_type == "relationship" and len(record_content) == 5:
                 try:
                     relationship_strength = int(record_content[4])
                 except ValueError:
                     raise ValueError("Invalid relationship strength")
 
+                source_entity_name, target_entity_name, description = (
+                    record_content[1],
+                    record_content[2],
+                    record_content[3],
+                )
+                # if source / target entity is missing, add it as an entity, and use the relationship description as the entity description
+                # this is not ideal but it's better than ignoring the relationship
+                if source_entity_name not in entity_name_to_entities:
+                    entity = Entity(name=source_entity_name, type="UNKNOWN", description=description)
+                    entities.append(entity)
+                    entity_name_to_entities[source_entity_name] = entity_name_to_entities
+                if target_entity_name not in entity_name_to_entities:
+                    entity = Entity(name=target_entity_name, type="UNKNOWN", description=description)
+                    entities.append(entity)
+                    entity_name_to_entities[target_entity_name] = entity
+
                 relationship = Relationship(
-                    source_entity=record_content[1],
-                    target_entity=record_content[2],
-                    description=record_content[3],
+                    source_entity=source_entity_name,
+                    target_entity=target_entity_name,
+                    description=description,
                     strength=relationship_strength,
                 )
                 relationships.append(relationship)
