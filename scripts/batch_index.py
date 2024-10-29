@@ -10,9 +10,9 @@ def main(test_cases_json_path: str) -> None:
     with open(test_cases_json_path, "r") as file:
         test_cases = json.load(file)
     
-    for document in test_cases:
-        document_id, test_cases = document["_id"], test_cases["context"]
-        create_index(test_cases, DEFAULT_ENTITY_TYPES, index_name=document_id)
+    for test_case in test_cases:
+        document_id, documents = test_case["_id"], test_case["context"]
+        create_index(documents, DEFAULT_ENTITY_TYPES, index_name=document_id)
 
 if __name__ == '__main__':
     fire.Fire(main)
