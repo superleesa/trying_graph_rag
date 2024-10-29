@@ -11,4 +11,4 @@ if __name__ == '__main__':
     with open(SAMPLE_INDEX_PATH, "rb") as file:
         sample_index = pickle.load(file)
 
-    query_index(SAMPLE_QUERY, sample_index)
+    print(query_index(SAMPLE_QUERY, sample_index))
