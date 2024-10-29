@@ -248,7 +248,9 @@ def create_graph(entities: list[SummarizedUniqueEntity], relationships: list[Rel
     return graph
 
 
-def create_index(documents: list[str], entity_types: list[str]) -> None:
+def create_index(documents: list[str], entity_types: list[str], index_name: str = "index") -> None:
+    # TODO: don't use the same index id (maybe use a timestamp)
+    
     _entities, _relationships = zip(
         *[extract_entities_and_relations(doc, entity_types) for doc in tqdm(documents, desc="Extracting entities")]
     )  # TODO: i think entities should keep track of original document??
@@ -280,5 +282,5 @@ def create_index(documents: list[str], entity_types: list[str]) -> None:
         hierachical_communities=summarized_communities,
     )
 
-    with open("index.pickle", "wb") as file:
+    with open(f"{index_name}.pickle", "wb") as file:
         pickle.dump(index, file)
