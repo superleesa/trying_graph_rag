@@ -14,22 +14,22 @@ The report should include the following sections:
 Return the output as a well-formed JSON-formatted string in the following format:
 
 ```json
-{
+{{
     "title": <report_title>,
     "summary": <executive_summary>,
     "rating": <impact_severity_rating>,
     "rating_explanation": <rating_explanation>,
     "findings": [
-        {
+        {{
             "summary": <insight_1_summary>,
             "explanation": <insight_1_explanation>
-        },
-        {
+        }},
+        {{
             "summary": <insight_2_summary>,
             "explanation": <insight_2_explanation>
-        }
+        }}
     ]
-}
+}}
 
 # Real Data
 Use the following text for your answer. Do not make anything up in your answer.
