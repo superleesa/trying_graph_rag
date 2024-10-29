@@ -1,20 +1,29 @@
 import pickle
 import random
+from pathlib import Path
 
 import networkx as nx
 import ollama
 from graspologic.partition import hierarchical_leiden
 from transformers import AutoTokenizer
 
-from trying_graph_rag.graph_rag.types import CommunityReport, Entity, Relationship, SummarizedCommunity, SummarizedUniqueEntity
+from trying_graph_rag.graph_rag.types import (
+    CommunityReport,
+    Entity,
+    Relationship,
+    SummarizedCommunity,
+    SummarizedUniqueEntity,
+)
 
-with open("../trying_graph_rag/graph_rag/prompts/entities_and_relationships_extraction.txt") as file:
+PROMPT_DIR = Path(__file__).parent / "prompts"
+
+with open(PROMPT_DIR / "entities_and_relationships_extraction.txt") as file:
     ENTITIES_AND_RELATIONSHIPS_EXTRACTION_PROMPT = file.read()
 
-with open("../trying_graph_rag/graph_rag/prompts/summarize_entities.txt") as file:
+with open(PROMPT_DIR / "entity_summarization.txt") as file:
     SUMMARIZE_ENTITIES_PROMPT = file.read()
 
-with open("../trying_graph_rag/graph_rag/prompts/community_reports.txt") as file:
+with open(PROMPT_DIR / "community_report.txt") as file:
     COMMUNITY_REPORTS_PROMPT = file.read()
 
 tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b-it")
