@@ -36,7 +36,7 @@ def map_query_to_community(
         if ollama_response.startswith("```json") and ollama_response.endswith("```"):
             ollama_response = ollama_response[7:-3].strip()
         output_json = json.loads(ollama_response)
-        return [RelevantPointToQuery(output_record) for output_record in output_json["points"]]
+        return [RelevantPointToQuery(**output_record) for output_record in output_json["points"]]
 
     # FIXME: this assumes that community report does not overflow the prompt length
     formatted_community_report = (
