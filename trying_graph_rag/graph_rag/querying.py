@@ -2,6 +2,8 @@ import json
 import logging
 from pathlib import Path
 
+from tqdm import tqdm
+
 from trying_graph_rag.graph_rag.types import GraphIndex, RelevantPointToQuery, SummarizedCommunity
 from trying_graph_rag.utils import filter_non_fittable_elements, flatten, generate_ollama_response
 
@@ -84,8 +86,9 @@ def query_index(query: str, index: GraphIndex, hierarchy_level: int = 0, top_n: 
 
     corresponding_level_communities = index.hierachical_communities[hierarchy_level]
     community_wise_relevant_points = [
-        map_query_to_community(query, community) for community in corresponding_level_communities
+        map_query_to_community(query, community) for community in tqdm(corresponding_level_communities, desc="Mapping query to community")
     ]
     # just get the relevant points for now (ignore SummarizedCommunity)
     all_relevant_points = flatten([relavent_points for _, relavent_points in community_wise_relevant_points])
+    print("Generating final answer...")
     return reduce_to_one_answer(query, all_relevant_points, top_n=top_n)
