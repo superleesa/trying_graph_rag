@@ -149,7 +149,9 @@ def summarize_grouped_entities(entities: list[Entity]) -> SummarizedUniqueEntity
 
 
 def format_communities_and_summarize(
-    hierarchy_level: int, node_id_to_community_id: dict[str, int], entity_id_to_entity: dict[str, SummarizedUniqueEntity]
+    hierarchy_level: int,
+    node_id_to_community_id: dict[str, int],
+    entity_id_to_entity: dict[str, SummarizedUniqueEntity],
 ) -> list[SummarizedCommunity]:
     # group by community id
     communities: dict[int, list[str]] = {}
@@ -243,17 +245,22 @@ def create_index(documents: list[str], entity_types: list[str]) -> None:
         *[extract_entities_and_relations(doc, entity_types) for doc in tqdm(documents, desc="Extracting entities")]
     )  # TODO: i think entities should keep track of original document??
     entities, relationships = flatten(_entities), flatten(_relationships)
-    
+
     # TODO: for now we only summarize entities but we should also summarize relationships
     grouped_entities = merge_same_name_entities(entities)
-    unique_id_to_entity = {entity_id: summarize_grouped_entities(entities) for entity_id, entities in tqdm(grouped_entities.items(), desc="Summarizing entities")}
-    
-    graph = create_graph(list(unique_id_to_entity.values()), relationships)    
+    unique_id_to_entity = {
+        entity_id: summarize_grouped_entities(entities)
+        for entity_id, entities in tqdm(grouped_entities.items(), desc="Summarizing entities")
+    }
+
+    graph = create_graph(list(unique_id_to_entity.values()), relationships)
     hierarchical_communities = create_communities(graph, max_cluster_size=None, random_seed=123456789)
 
     summarized_communities = [
         format_communities_and_summarize(hierarchical_level, node_id_to_community_id, unique_id_to_entity)
-        for hierarchical_level, node_id_to_community_id in tqdm(hierarchical_communities.items(), desc="Summarizing communities")
+        for hierarchical_level, node_id_to_community_id in tqdm(
+            hierarchical_communities.items(), desc="Summarizing communities"
+        )
     ]
 
     # store the index
