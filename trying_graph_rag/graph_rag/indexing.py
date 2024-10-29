@@ -1,3 +1,5 @@
+import json
+import logging
 import pickle
 import random
 from pathlib import Path
@@ -15,6 +17,8 @@ from trying_graph_rag.graph_rag.types import (
     SummarizedCommunity,
     SummarizedUniqueEntity,
 )
+
+logger = logging.getLogger(__name__)
 
 PROMPT_DIR = Path(__file__).parent / "prompts"
 
@@ -108,10 +112,10 @@ def extract_entities_and_relations(
             completion_delimiter=completion_delimiter,
         ),
         options={"temperature": 0},
-    )
+    )["response"]
 
-    content = ollama_response["response"]
-    return parse_output(content, tuple_delimiter, record_delimiter, completion_delimiter)
+    logger.info(f"Generated entities and relationships: {ollama_response}")
+    return parse_output(ollama_response, tuple_delimiter, record_delimiter, completion_delimiter)
 
 
 def summarize_grouped_entities(entities: list[Entity]) -> SummarizedUniqueEntity:
@@ -140,6 +144,7 @@ def summarize_grouped_entities(entities: list[Entity]) -> SummarizedUniqueEntity
         prompt=SUMMARIZE_ENTITIES_PROMPT.format(entity_name=entity_name, description_list=concatenated_descriptions),
         options={"temperature": 0},
     )["response"]
+    logger.info(f"Generated entity summary: {ollama_response}")
     return SummarizedUniqueEntity(name=entity_name, type=entity_type, summary=ollama_response)
 
 
@@ -159,13 +164,15 @@ def format_communities_and_summarize(
         # FIXME: don't add everything to the context (it will cause context length to exceed the limit)
         # TODO: for now we ignore relationship when creating community report, but we should include them
         concatenated_community_entities = ", ".join([entity.summary for entity in community_entities.values()])
-        community_report = CommunityReport(
-            **ollama.generate(
-                model="gemma2:2b",
-                prompt=COMMUNITY_REPORTS_PROMPT.format(community_entities=concatenated_community_entities),
-                options={"temperature": 0},
-            )["response"]
-        )
+
+        ollama_response = ollama.generate(
+            model="gemma2:2b",
+            prompt=COMMUNITY_REPORTS_PROMPT.format(community_entities=concatenated_community_entities),
+            options={"temperature": 0},
+        )["response"]
+        logger.info(f"Generated community report: {ollama_response}")
+
+        community_report = CommunityReport(**json.loads(ollama_response))
         formatted_community = SummarizedCommunity(
             community_id=community_id, hierachy_level=hierarchy_level, community_report=community_report
         )
