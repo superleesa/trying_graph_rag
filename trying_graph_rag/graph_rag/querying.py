@@ -1,8 +1,10 @@
+import json
 from pathlib import Path
 
 import ollama
 
-from trying_graph_rag.graph_rag.types import GraphIndex, SummarizedCommunity
+from trying_graph_rag.graph_rag.types import GraphIndex, RelevantPointToQuery, SummarizedCommunity
+from trying_graph_rag.utils import flatten
 
 PROMPT_DIR = Path(__file__).parent / "prompts"
 
@@ -13,55 +15,64 @@ with open(PROMPT_DIR / "reduction.txt") as file:
     REDUCTION_PROMPT = file.read()
 
 
-def map_query_to_community(query: str, community_reports: list[SummarizedCommunity]) -> list[tuple[SummarizedCommunity, str, float]]:
+def map_query_to_community(query: str, community_reports: list[SummarizedCommunity]) -> list[tuple[SummarizedCommunity, list[RelevantPointToQuery]]]:
     # for each community report, generate a partial answer using the query as context
     # calculate the relevance score of the partial answer
     # return a list of community reports with their relevance scores
-    def parse_output(output: str) -> tuple[str, float]:
-        #TODO
-        pass
+    def parse_output(ollama_response: str) -> list[RelevantPointToQuery]:
+        ollama_response = ollama_response.strip()
+        if ollama_response.startswith("```json") and ollama_response.endswith("```"):
+            ollama_response = ollama_response[7:-3].strip()
+        output_json = json.loads(ollama_response)
+        return [RelevantPointToQuery(output_record) for output_record in output_json["points"]]
+        
     
     community_partial_answers = []
     
     for community_report in community_reports:
+        formatted_community_report = community_report.community_report.model_dump_json()  # just dump the community report to the prompt
         ollama_response = ollama.generate(
             model="gemma2:2b",
-            prompt=query + community_report.community_report.summary,
+            prompt=MAP_PROMPT.format(query=query, community_report=formatted_community_report),
             options={"temperature": 0},
         )["response"]
         
-        partial_answer, relevance_score = parse_output(ollama_response)
+        discovered_points = parse_output(ollama_response)
         
-        community_partial_answers.append((community_report, partial_answer, relevance_score))
+        community_partial_answers.append((community_report, discovered_points))
     
     return community_partial_answers
 
 
-def reduce_answer(query: str, community_partial_answers: list[tuple[SummarizedCommunity, str, float]], top_n: int) -> str:
+def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery], top_n: int) -> str:
     # sort the community_relevance_pairs by relevance score
     # combine the summaries of the top 3 communities together to form the final answer
-    non_zero_relevance_pairs = [(partial_answer, relevance_score) for _, partial_answer, relevance_score in community_partial_answers if relevance_score > 0]
+    non_zero_relevance_pairs = [relevant_point for relevant_point in relevant_points if relevant_point.score > 0]
     sorted_pairs = sorted(non_zero_relevance_pairs, key=lambda x: x[1], reverse=True)
     top_n_pairs = sorted_pairs[:top_n]  # TODO: make this customizable?
     
     # TODO: maybe add community information as well (right now, we are only using the partial answers)
-    concatenated_community_reports = "\n".join([partial_answer for partial_answer, _ in top_n_pairs])
+    concatenated_partial_answeres = "\n".join([relevant_point.model_dump_json() for relevant_point in top_n_pairs])
     
     ollama_response = ollama.generate(
         model="gemma2:2b",
         prompt=REDUCTION_PROMPT.format(
             query=query,
-            community_reports=concatenated_community_reports,
+            community_reports=concatenated_partial_answeres,
         ),
         options={"temperature": 0},
     )["response"]
     
     return ollama_response
 
-    
 
 def query_index(query: str, index: GraphIndex, hierachy_level: int = 1, top_n: int = 3) -> str:
     # load the index, for the particular hierachy level
+    if hierachy_level not in index.hierachical_communities:
+        raise ValueError(f"Invalid hierachy level: {hierachy_level}")
+    
     corresponding_level_communities = index.hierachical_communities[hierachy_level]
-    community_partial_answers = map_query_to_community(query, corresponding_level_communities)
-    return reduce_answer(query, community_partial_answers, top_n=top_n)
+    community_partial_answers = [map_query_to_community(query, community) for community in corresponding_level_communities]
+    # just get the relevant points for now (ignore SummarizedCommunity)
+    all_relevant_points = flatten([relavent_points for _, relavent_points in community_partial_answers])
+    return reduce_to_one_answer(query, all_relevant_points, top_n=top_n)
