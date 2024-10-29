@@ -68,12 +68,12 @@ def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery]
     return ollama_response
 
 
-def query_index(query: str, index: GraphIndex, hierachy_level: int = 1, top_n: int = 3) -> str:
+def query_index(query: str, index: GraphIndex, hierarchy_level: int = 1, top_n: int = 3) -> str:
     # load the index, for the particular hierachy level
-    if hierachy_level not in index.hierachical_communities:
-        raise ValueError(f"Invalid hierachy level: {hierachy_level}")
+    if hierarchy_level not in index.hierachical_communities:
+        raise ValueError(f"Invalid hierachy level: {hierarchy_level}")
 
-    corresponding_level_communities = index.hierachical_communities[hierachy_level]
+    corresponding_level_communities = index.hierachical_communities[hierarchy_level]
     community_wise_relevant_points = [
         map_query_to_community(query, community) for community in corresponding_level_communities
     ]
