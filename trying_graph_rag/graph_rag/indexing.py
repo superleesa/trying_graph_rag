@@ -5,6 +5,7 @@ from pathlib import Path
 import networkx as nx
 import ollama
 from graspologic.partition import hierarchical_leiden
+from tqdm import tqdm
 from transformers import AutoTokenizer
 
 from trying_graph_rag.graph_rag.types import (
@@ -147,15 +148,12 @@ def format_communities_and_summarize(
         communities[community_id] = communities.get(community_id, [])
         communities[community_id].append(node_id)
 
-    # i'm not sure how the communities would look like
-    # it's probably a graph
     formatted_communities = []
-
-    # for now ignore relationship (but we should include them)
     for community_id, community in communities.items():
         community_entities = {entity_id: entity_id_to_entity[entity_id] for entity_id in community}
 
         # FIXME: don't add everything to the context (it will cause context length to exceed the limit)
+        # TODO: for now we ignore relationship when creating community report, but we should include them
         concatenated_community_entities = ", ".join([entity.summary for entity in community_entities.values()])
         community_report = CommunityReport(
             **ollama.generate(
@@ -229,20 +227,21 @@ def create_graph(entities: list[SummarizedUniqueEntity], relationships: list[Rel
     return graph
 
 
-def create_index(documents: list[str]) -> None:
+def create_index(documents: list[str], entity_types: list[str]) -> None:
     entities, relationships = zip(
-        [extract_entities_and_relations(doc) for doc in documents]
-    )  # i think entities should keep track of original document
-    # for now ignore relationships
+        [extract_entities_and_relations(doc, entity_types) for doc in tqdm(documents, desc="Extracting entities")]
+    )  # TODO: i think entities should keep track of original document??
+    
+    # TODO: for now we only summarize entities but we should also summarize relationships
     grouped_entities = merge_same_name_entities(entities)
-    unique_id_to_entity = {entity_id: summarize_grouped_entities(entities) for entity_id, entities in grouped_entities}
-    graph = create_graph(list(unique_id_to_entity.values()), relationships)
-
-    # TODO: create communities but with different hierarchies
+    unique_id_to_entity = {entity_id: summarize_grouped_entities(entities) for entity_id, entities in tqdm(grouped_entities, desc="Summarizing entities")}
+    
+    graph = create_graph(list(unique_id_to_entity.values()), relationships)    
     hierarchical_communities = create_communities(graph, max_cluster_size=None, random_seed=123456789)
+
     summarized_communities = [
         format_communities_and_summarize(hierarchical_level, node_id_to_community_id, unique_id_to_entity)
-        for hierarchical_level, node_id_to_community_id in hierarchical_communities.items()
+        for hierarchical_level, node_id_to_community_id in tqdm(hierarchical_communities.items(), desc="Summarizing communities")
     ]
 
     # store the index
