@@ -17,8 +17,8 @@ DEFAULT_MAP_PROMPT_LENGTH = len(MAP_PROMPT.format(query="", community_report="")
 DEFAULT_REDUCTION_PROMPT_LENGTH = len(REDUCTION_PROMPT.format(query="", relevant_points=""))
 
 def map_query_to_community(
-    query: str, community_reports: list[SummarizedCommunity]
-) -> list[tuple[SummarizedCommunity, list[RelevantPointToQuery]]]:
+    query: str, community_report: SummarizedCommunity
+) -> tuple[SummarizedCommunity, list[RelevantPointToQuery]]:
     # for each community report, generate a partial answer using the query as context
     # calculate the relevance score of the partial answer
     # return a list of community reports with their relevance scores
@@ -29,22 +29,17 @@ def map_query_to_community(
         output_json = json.loads(ollama_response)
         return [RelevantPointToQuery(output_record) for output_record in output_json["points"]]
 
-    community_partial_answers = []
+    # FIXME: this assumes that community report does not overflow the prompt length
+    formatted_community_report = (
+        community_report.community_report.model_dump_json()
+    )  # just dump the community report to the prompt
+    ollama_response = generate_ollama_response(
+        prompt=MAP_PROMPT.format(query=query, community_report=formatted_community_report),
+    )
 
-    for community_report in community_reports:
-        # FIXME: this assumes that community report does not overflow the prompt length
-        formatted_community_report = (
-            community_report.community_report.model_dump_json()
-        )  # just dump the community report to the prompt
-        ollama_response = generate_ollama_response(
-            prompt=MAP_PROMPT.format(query=query, community_report=formatted_community_report),
-        )
+    discovered_points = parse_output(ollama_response)
 
-        discovered_points = parse_output(ollama_response)
-
-        community_partial_answers.append((community_report, discovered_points))
-
-    return community_partial_answers
+    return (community_report, discovered_points)
 
 
 def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery], top_n: int) -> str:
@@ -79,9 +74,9 @@ def query_index(query: str, index: GraphIndex, hierachy_level: int = 1, top_n: i
         raise ValueError(f"Invalid hierachy level: {hierachy_level}")
 
     corresponding_level_communities = index.hierachical_communities[hierachy_level]
-    community_partial_answers = [
+    community_wise_relevant_points = [
         map_query_to_community(query, community) for community in corresponding_level_communities
     ]
     # just get the relevant points for now (ignore SummarizedCommunity)
-    all_relevant_points = flatten([relavent_points for _, relavent_points in community_partial_answers])
+    all_relevant_points = flatten([relavent_points for _, relavent_points in community_wise_relevant_points])
     return reduce_to_one_answer(query, all_relevant_points, top_n=top_n)
