@@ -203,6 +203,7 @@ def create_communities(
     # there won't be any hirarchies (there would onbly be one level)
     if max_cluster_size is None:
         max_cluster_size = 2 * (len(graph.nodes) // 3)
+        logger.info(f"Setting max_cluster_size to {max_cluster_size}")
 
     community_mapping = hierarchical_leiden(graph, max_cluster_size=max_cluster_size, random_seed=random_seed)
     results: dict[int, dict[str, int]] = {}
@@ -231,8 +232,13 @@ def create_graph(entities: list[SummarizedUniqueEntity], relationships: list[Rel
     entity_to_id = {entity.name: i for i, entity in enumerate(entities)}
     graph_temp = [[0 for _ in range(len(entities))] for _ in range(len(entities))]
     for relationship in relationships:
-        source_id = entity_to_id[relationship.source_entity]
-        target_id = entity_to_id[relationship.target_entity]
+        try:
+            source_id = entity_to_id[relationship.source_entity]
+            target_id = entity_to_id[relationship.target_entity]
+        except KeyError:
+            # note: llm sometimes generate relationship that is not in the entities list
+            logger.warning(f"Invalid relationship: {relationship}")
+            continue
         strength = relationship.strength
         graph_temp[source_id][target_id] += strength
         graph_temp[target_id][source_id] += strength

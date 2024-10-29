@@ -19,6 +19,7 @@ Extract entities of specified types from the text and identify relationships amo
      - **relationship_strength**: Numeric score of relationship strength
    - Format:
      ("relationship"{tuple_delimiter}<source_entity>{tuple_delimiter}<target_entity>{tuple_delimiter}<relationship_description>{tuple_delimiter}<relationship_strength>)
+   - Note: Do NOT use entities that were not extracted in the first step as source/target entity. 
 
 3. **Output:**
    - Provide a single list of all entities and relationships.
