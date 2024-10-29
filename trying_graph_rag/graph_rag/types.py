@@ -37,3 +37,15 @@ class SummarizedCommunity(BaseModel):
     community_id: int
     hierachy_level: int
     community_report: CommunityReport
+
+
+class GraphIndex(BaseModel):
+    all_entities: list[Entity]
+    all_relationships: list[Relationship]
+    unique_entities: list[SummarizedUniqueEntity]
+    hierachical_communities: dict[int, list[SummarizedCommunity]]
+
+
+class RelevantPointToQuery(BaseModel):
+    description: str
+    score: float  # should be within 0 - 100
