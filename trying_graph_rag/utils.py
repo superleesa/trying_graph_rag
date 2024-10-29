@@ -15,3 +15,21 @@ def generate_ollama_response(prompt: str) -> str:
 
 def flatten[T](tuple_list: tuple[list[T]]) -> list[T]:
     return [item for sublist in tuple_list for item in sublist]
+
+
+def filter_non_fittable_elements(elements: list[str], max_length: int, element_delimiter: str) -> list[str]:
+    """
+    when assigning `max_length` consider the output length and the default prompt length
+    """
+    delimiter_tokens = tokenizer(element_delimiter)["input_ids"]
+    filtered_elements = []
+    current_length = 0
+    for element in elements:
+        element_tokens = tokenizer(element)["input_ids"]
+        current_length += element_tokens + delimiter_tokens
+        
+        if current_length <= max_length:
+            filtered_elements.append(element)
+        else:
+            break
+    return filtered_elements
