@@ -33,6 +33,10 @@ SUMMARIZA_ENTITIES_PROMPT_LENGTH = len(
 )
 
 
+def flatten[T](tuple_list: tuple[list[T]]) -> list[T]:
+    return [item for sublist in tuple_list for item in sublist]
+
+
 def extract_entities_and_relations(
     document: str,
     entity_types: list[str],
@@ -136,7 +140,7 @@ def summarize_grouped_entities(entities: list[Entity]) -> SummarizedUniqueEntity
         prompt=SUMMARIZE_ENTITIES_PROMPT.format(entity_name=entity_name, description_list=concatenated_descriptions),
         options={"temperature": 0},
     )["response"]
-    return SummarizedUniqueEntity(name=entity_name, type=entity_type, summary=ollama_response["response"])
+    return SummarizedUniqueEntity(name=entity_name, type=entity_type, summary=ollama_response)
 
 
 def format_communities_and_summarize(
@@ -228,13 +232,14 @@ def create_graph(entities: list[SummarizedUniqueEntity], relationships: list[Rel
 
 
 def create_index(documents: list[str], entity_types: list[str]) -> None:
-    entities, relationships = zip(
-        [extract_entities_and_relations(doc, entity_types) for doc in tqdm(documents, desc="Extracting entities")]
+    _entities, _relationships = zip(
+        *[extract_entities_and_relations(doc, entity_types) for doc in tqdm(documents, desc="Extracting entities")]
     )  # TODO: i think entities should keep track of original document??
+    entities, relationships = flatten(_entities), flatten(_relationships)
     
     # TODO: for now we only summarize entities but we should also summarize relationships
     grouped_entities = merge_same_name_entities(entities)
-    unique_id_to_entity = {entity_id: summarize_grouped_entities(entities) for entity_id, entities in tqdm(grouped_entities, desc="Summarizing entities")}
+    unique_id_to_entity = {entity_id: summarize_grouped_entities(entities) for entity_id, entities in tqdm(grouped_entities.items(), desc="Summarizing entities")}
     
     graph = create_graph(list(unique_id_to_entity.values()), relationships)    
     hierarchical_communities = create_communities(graph, max_cluster_size=None, random_seed=123456789)
