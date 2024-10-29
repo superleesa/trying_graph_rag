@@ -1,9 +1,9 @@
 import ollama
+from ollama import Options
+from transformers import AutoTokenizer
 
-OLLAMA_GENERATION_CONFIG = {
-    "temperature": 0,
-    "seed": 123456789,
-}
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b-it")
+OLLAMA_GENERATION_CONFIG = Options(temperature=0, seed=123456789)
 
 def generate_ollama_response(prompt: str) -> str:
     return ollama.generate(
