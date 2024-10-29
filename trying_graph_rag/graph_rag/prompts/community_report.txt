@@ -13,7 +13,6 @@ The report should include the following sections:
 
 Return the output as a well-formed JSON-formatted string in the following format:
 
-```json
 {{
     "title": <report_title>,
     "summary": <executive_summary>,
@@ -32,7 +31,7 @@ Return the output as a well-formed JSON-formatted string in the following format
 }}
 
 # Real Data
-Use the following text for your answer. Do not make anything up in your answer.
+Use the following text for your answer. Do not make anything up in your answer. Just include the report in the json format, and you don't need to include any explanation after it.
 
 Text:
 {community_entities}
