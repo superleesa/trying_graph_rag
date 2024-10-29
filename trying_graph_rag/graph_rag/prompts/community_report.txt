@@ -1,0 +1,40 @@
+**Goal:**
+Write a comprehensive report about a community, using a list of entities, their relationships, and any associated claims. The report should inform decision-makers about significant information and potential impact, including key entities, their relationships, and noteworthy claims.
+
+**Report Structure:**
+
+The report should include the following sections:
+
+- **Title**: A short, specific name representing the community's key entities. Include representative named entities when possible.
+- **Summary**: An executive summary of the community's overall structure, how entities are related, and significant information about them.
+- **Impact Severity Rating**: A float score between 0-10 representing the severity of impact posed by entities within the community.
+- **Rating Explanation**: A single sentence explaining the impact severity rating.
+- **Detailed Findings**: A list of 5-10 key insights about the community. Each insight should have a short summary and explanatory text grounded according to the grounding rules.
+
+Return the output as a well-formed JSON-formatted string in the following format:
+
+```json
+{
+    "title": <report_title>,
+    "summary": <executive_summary>,
+    "rating": <impact_severity_rating>,
+    "rating_explanation": <rating_explanation>,
+    "findings": [
+        {
+            "summary": <insight_1_summary>,
+            "explanation": <insight_1_explanation>
+        },
+        {
+            "summary": <insight_2_summary>,
+            "explanation": <insight_2_explanation>
+        }
+    ]
+}
+
+# Real Data
+Use the following text for your answer. Do not make anything up in your answer.
+
+Text:
+{community_entities}
+
+Output:

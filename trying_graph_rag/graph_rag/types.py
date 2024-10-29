@@ -14,7 +14,26 @@ class UniqueEntity(BaseModel):
 
 
 class Relationship(BaseModel):
-    source_entity: str
+    source_entity: str  # entity name
     target_entity: str
     description: str
     strength: int
+
+
+class Findings(BaseModel):
+    summary: str
+    explanation: str
+
+
+class CommunityReport(BaseModel):
+    title: str
+    summary: str
+    rating: int
+    rating_explanation: str
+    findings: list[Findings]
+
+
+class SummarizedCommunity(BaseModel):
+    community_id: int
+    hierachy_level: int
+    community_report: CommunityReport
