@@ -17,6 +17,7 @@ from trying_graph_rag.graph_rag.types import (
     SummarizedCommunity,
     SummarizedUniqueEntity,
 )
+from trying_graph_rag.utils import flatten
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -41,8 +42,7 @@ SUMMARIZA_ENTITIES_PROMPT_LENGTH = len(
 )
 
 
-def flatten[T](tuple_list: tuple[list[T]]) -> list[T]:
-    return [item for sublist in tuple_list for item in sublist]
+
 
 
 def extract_entities_and_relations(
