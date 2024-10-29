@@ -24,6 +24,7 @@ Extract entities of specified types from the text and identify relationships amo
    - Provide a single list of all entities and relationships.
    - Use **{record_delimiter}** as the list delimiter.
    - End with {completion_delimiter}
+   - You don't need explanation (only the list of entities / relationships is enough).
 
 ---
 
