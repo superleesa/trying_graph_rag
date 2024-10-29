@@ -10,6 +10,7 @@ Extract entities of specified types from the text and identify relationships amo
      - **entity_description**: Description of attributes and activities
    - Format:
      ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
+   - Note: detect all entities in this step, as entities that are not detected in this step cannot be used as a soure / target entity of a relationship
 
 2. **Relationship Identification:**
    - For each pair of related entities:
@@ -65,4 +66,3 @@ Entity_types: {entity_types}
 Text: {input_text}
 
 Output:
-"""```
