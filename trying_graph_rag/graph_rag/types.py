@@ -28,7 +28,7 @@ class Findings(BaseModel):
 class CommunityReport(BaseModel):
     title: str
     summary: str
-    rating: int
+    rating: float
     rating_explanation: str
     findings: list[Findings]
 
