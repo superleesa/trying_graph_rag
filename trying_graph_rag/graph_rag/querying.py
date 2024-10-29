@@ -73,7 +73,9 @@ def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery]
     sorted_relevant_points = sorted(non_zero_relevance_points, key=lambda x: x.score, reverse=True)
     top_n_relevant_points = sorted_relevant_points[:top_n]
     top_n_relevant_points_stringified = [relevant_point.model_dump_json() for relevant_point in top_n_relevant_points]
-    fittable_relevant_points = filter_non_fittable_elements(top_n_relevant_points_stringified, max_length=7000-DEFAULT_REDUCTION_PROMPT_LENGTH, delimiter="\n")  # allocate about 1000 tokens for the output
+    fittable_relevant_points = filter_non_fittable_elements(
+        top_n_relevant_points_stringified, max_length=7000 - DEFAULT_REDUCTION_PROMPT_LENGTH, element_delimiter="\n"
+    )  # allocate about 1000 tokens for the output
 
     # TODO: maybe add community information as well (right now, we are only using the partial answers)
     concatenated_relevant_points = "\n".join(fittable_relevant_points)
