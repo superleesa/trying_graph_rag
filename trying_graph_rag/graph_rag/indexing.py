@@ -166,14 +166,18 @@ def format_communities_and_summarize(
         # FIXME: don't add everything to the context (it will cause context length to exceed the limit)
         # TODO: for now we ignore relationship when creating community report, but we should include them
         concatenated_community_entities = ", ".join([entity.summary for entity in community_entities.values()])
-
-        ollama_response = ollama.generate(
+        
+        ollama_response: str = ollama.generate(
             model="gemma2:2b",
             prompt=COMMUNITY_REPORTS_PROMPT.format(community_entities=concatenated_community_entities),
             options={"temperature": 0},
         )["response"]
         logger.info(f"Generated community report: {ollama_response}")
-
+        
+        ollama_response = ollama_response.strip()
+        if ollama_response.startswith("```json") and ollama_response.endswith("```"):
+            ollama_response = ollama_response[7:-3].strip()
+        
         community_report = CommunityReport(**json.loads(ollama_response))
         formatted_community = SummarizedCommunity(
             community_id=community_id, hierachy_level=hierarchy_level, community_report=community_report
