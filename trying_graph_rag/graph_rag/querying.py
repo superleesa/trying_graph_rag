@@ -25,6 +25,7 @@ with open(PROMPT_DIR / "reduction.txt") as file:
 DEFAULT_MAP_PROMPT_LENGTH = len(MAP_PROMPT.format(query="", community_report=""))
 DEFAULT_REDUCTION_PROMPT_LENGTH = len(REDUCTION_PROMPT.format(query="", relevant_points=""))
 
+
 def map_query_to_community(
     query: str, community_report: SummarizedCommunity
 ) -> tuple[SummarizedCommunity, list[RelevantPointToQuery]]:
@@ -57,19 +58,20 @@ def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery]
     - sort the community_relevance_pairs by relevance score
     - combine the summaries of the top n communities together to form the final answer
     """
+
     def parse_output(ollama_response: str) -> tuple[str, str]:
         ollama_response = ollama_response.strip()
         if not ollama_response:
             return "No answer found", ""
-        
+
         if ollama_response.startswith("```json") and ollama_response.endswith("```"):
             ollama_response = ollama_response[7:-3].strip()
         output_json = json.loads(ollama_response)
         return output_json["Exact Answer"], output_json["Explanation"]
-    
+
     non_zero_relevance_points = [relevant_point for relevant_point in relevant_points if relevant_point.score > 0]
     top_n = min(top_n, len(non_zero_relevance_points))
-    
+
     sorted_relevant_points = sorted(non_zero_relevance_points, key=lambda x: x.score, reverse=True)
     top_n_relevant_points = sorted_relevant_points[:top_n]
     top_n_relevant_points_stringified = [relevant_point.model_dump_json() for relevant_point in top_n_relevant_points]
@@ -98,7 +100,8 @@ def query_index(query: str, index: GraphIndex, hierarchy_level: int = 0, top_n: 
 
     corresponding_level_communities = index.hierachical_communities[hierarchy_level]
     community_wise_relevant_points = [
-        map_query_to_community(query, community) for community in tqdm(corresponding_level_communities, desc="Mapping query to community")
+        map_query_to_community(query, community)
+        for community in tqdm(corresponding_level_communities, desc="Mapping query to community")
     ]
     # just get the relevant points for now (ignore SummarizedCommunity)
     all_relevant_points = flatten([relavent_points for _, relavent_points in community_wise_relevant_points])
