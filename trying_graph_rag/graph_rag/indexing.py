@@ -66,7 +66,7 @@ def extract_entities_and_relations(
         entities: list[Entity] = []
         relationships: list[Relationship] = []
 
-        for record in records:
+        for idx, record in enumerate(records):
             record = record.strip().lstrip("(").rstrip(")")
             # skip empty records
             if not record:
@@ -80,6 +80,11 @@ def extract_entities_and_relations(
 
             record_type = record_content[0]
             if record_type not in ["entity", "relationship"]:
+                # there are cases where the llm generates invalid completion delimiter
+                # just ignore them
+                if idx == len(records) - 1:
+                    logger.warning(f"Invalid record type (at the end of completion): {record_content}")
+                    break
                 raise ValueError(f"Invalid record type: {record_content}")
 
             if record_type == "entity" and len(record_content) == 4:
