@@ -52,11 +52,21 @@ def map_query_to_community(
     return (community_report, discovered_points)
 
 
-def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery], top_n: int) -> str:
+def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery], top_n: int) -> tuple[str, str]:
     """
     - sort the community_relevance_pairs by relevance score
     - combine the summaries of the top n communities together to form the final answer
     """
+    def parse_output(ollama_response: str) -> tuple[str, str]:
+        ollama_response = ollama_response.strip()
+        if not ollama_response:
+            return "No answer found", ""
+        
+        if ollama_response.startswith("```json") and ollama_response.endswith("```"):
+            ollama_response = ollama_response[7:-3].strip()
+        output_json = json.loads(ollama_response)
+        return output_json["Exact Answer"], output_json["Explanation"]
+    
     non_zero_relevance_pairs = [relevant_point for relevant_point in relevant_points if relevant_point.score > 0]
     top_n = min(top_n, len(non_zero_relevance_pairs))
     
@@ -76,10 +86,10 @@ def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery]
     )
     logger.info(f"Generated final answer: {ollama_response}")
 
-    return ollama_response
+    return parse_output(ollama_response)
 
 
-def query_index(query: str, index: GraphIndex, hierarchy_level: int = 0, top_n: int = 5) -> str:
+def query_index(query: str, index: GraphIndex, hierarchy_level: int = 0, top_n: int = 5) -> tuple[str, str]:
     # load the index, for the particular hierachy level
     if hierarchy_level not in index.hierachical_communities:
         raise ValueError(f"Invalid hierachy level: {hierarchy_level}")
