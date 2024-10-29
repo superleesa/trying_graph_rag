@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from trying_graph_rag.graph_rag.types import GraphIndex, RelevantPointToQuery, SummarizedCommunity
-from trying_graph_rag.utils import flatten, generate_ollama_response
+from trying_graph_rag.utils import filter_non_fittable_elements, flatten, generate_ollama_response
 
 PROMPT_DIR = Path(__file__).parent / "prompts"
 
@@ -12,6 +12,9 @@ with open(PROMPT_DIR / "map.txt") as file:
 with open(PROMPT_DIR / "reduction.txt") as file:
     REDUCTION_PROMPT = file.read()
 
+
+DEFAULT_MAP_PROMPT_LENGTH = len(MAP_PROMPT.format(query="", community_report=""))
+DEFAULT_REDUCTION_PROMPT_LENGTH = len(REDUCTION_PROMPT.format(query="", relevant_points=""))
 
 def map_query_to_community(
     query: str, community_reports: list[SummarizedCommunity]
@@ -29,6 +32,7 @@ def map_query_to_community(
     community_partial_answers = []
 
     for community_report in community_reports:
+        # FIXME: this assumes that community report does not overflow the prompt length
         formatted_community_report = (
             community_report.community_report.model_dump_json()
         )  # just dump the community report to the prompt
@@ -44,14 +48,20 @@ def map_query_to_community(
 
 
 def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery], top_n: int) -> str:
-    # sort the community_relevance_pairs by relevance score
-    # combine the summaries of the top 3 communities together to form the final answer
+    """
+    - sort the community_relevance_pairs by relevance score
+    - combine the summaries of the top n communities together to form the final answer
+    """
     non_zero_relevance_pairs = [relevant_point for relevant_point in relevant_points if relevant_point.score > 0]
-    sorted_pairs = sorted(non_zero_relevance_pairs, key=lambda x: x[1], reverse=True)
-    top_n_pairs = sorted_pairs[:top_n]  # TODO: make this customizable?
+    top_n = min(top_n, len(non_zero_relevance_pairs))
+    
+    sorted_relevant_points = sorted(non_zero_relevance_pairs, key=lambda x: x[1], reverse=True)
+    top_n_relevant_points = sorted_relevant_points[:top_n]
+    top_n_relevant_points_stringified = [relevant_point.model_dump_json() for relevant_point in top_n_relevant_points]
+    fittable_relevant_points = filter_non_fittable_elements(top_n_relevant_points_stringified, max_length=7000-DEFAULT_REDUCTION_PROMPT_LENGTH, delimiter="\n")  # allocate about 1000 tokens for the output
 
     # TODO: maybe add community information as well (right now, we are only using the partial answers)
-    concatenated_relevant_points = "\n".join([relevant_point.model_dump_json() for relevant_point in top_n_pairs])
+    concatenated_relevant_points = "\n".join(fittable_relevant_points)
 
     ollama_response = generate_ollama_response(
         prompt=REDUCTION_PROMPT.format(
