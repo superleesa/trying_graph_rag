@@ -7,7 +7,7 @@ class Entity(BaseModel):
     description: str
 
 
-class UniqueEntity(BaseModel):
+class SummarizedUniqueEntity(BaseModel):
     name: str
     type: str
     summary: str

@@ -6,7 +6,7 @@ import ollama
 from graspologic.partition import hierarchical_leiden
 from transformers import AutoTokenizer
 
-from trying_graph_rag.graph_rag.types import CommunityReport, Entity, Relationship, SummarizedCommunity, UniqueEntity
+from trying_graph_rag.graph_rag.types import CommunityReport, Entity, Relationship, SummarizedCommunity, SummarizedUniqueEntity
 
 with open("../trying_graph_rag/graph_rag/prompts/entities_and_relationships_extraction.txt") as file:
     ENTITIES_AND_RELATIONSHIPS_EXTRACTION_PROMPT = file.read()
@@ -100,7 +100,7 @@ def extract_entities_and_relations(
     return parse_output(content, tuple_delimiter, record_delimiter, completion_delimiter)
 
 
-def summarize_grouped_entities(entities: list[Entity]) -> UniqueEntity:
+def summarize_grouped_entities(entities: list[Entity]) -> SummarizedUniqueEntity:
     entity_name = entities[0].name
     entity_type = entities[0].type
 
@@ -126,11 +126,11 @@ def summarize_grouped_entities(entities: list[Entity]) -> UniqueEntity:
         prompt=SUMMARIZE_ENTITIES_PROMPT.format(entity_name=entity_name, description_list=concatenated_descriptions),
         options={"temperature": 0},
     )["response"]
-    return UniqueEntity(name=entity_name, type=entity_type, summary=ollama_response["response"])
+    return SummarizedUniqueEntity(name=entity_name, type=entity_type, summary=ollama_response["response"])
 
 
 def format_communities_and_summarize(
-    hierarchy_level: int, node_id_to_community_id: dict[str, int], entity_id_to_entity: dict[str, UniqueEntity]
+    hierarchy_level: int, node_id_to_community_id: dict[str, int], entity_id_to_entity: dict[str, SummarizedUniqueEntity]
 ) -> list[SummarizedCommunity]:
     # group by community id
     communities: dict[int, list[str]] = {}
@@ -188,14 +188,14 @@ def merge_same_name_entities(entities: list[Entity]) -> dict[str, list[Entity]]:
     enity_name_to_entities: dict[str, list[Entity]] = {}
 
     for entity in entities:
-        key = entity.name + entity.type
+        key = entity.name  # should have `+ entity.type` but for now ignore it for simplicity
         enity_name_to_entities[key] = enity_name_to_entities.get(key, [])
         enity_name_to_entities[key].append(entity)
 
     return enity_name_to_entities
 
 
-def create_graph(entities: list[UniqueEntity], relationships: list[Relationship]) -> nx.Graph:
+def create_graph(entities: list[SummarizedUniqueEntity], relationships: list[Relationship]) -> nx.Graph:
     # FIXME: this ignores the type of the entity
 
     # use index within the entities list as the node id
@@ -226,20 +226,20 @@ def create_index(documents: list[str]) -> None:
     )  # i think entities should keep track of original document
     # for now ignore relationships
     grouped_entities = merge_same_name_entities(entities)
-    unique_entities = [summarize_grouped_entities(entities) for _, entities in grouped_entities]
-    graph = create_graph(unique_entities, relationships)
+    unique_id_to_entity = {entity_id: summarize_grouped_entities(entities) for entity_id, entities in grouped_entities}
+    graph = create_graph(list(unique_id_to_entity.values()), relationships)
 
     # TODO: create communities but with different hierarchies
     hierarchical_communities = create_communities(graph, max_cluster_size=None, random_seed=123456789)
     summarized_communities = [
-        format_communities_and_summarize(hierarchical_level, node_id_to_community_id, entity_id_to_entity)
+        format_communities_and_summarize(hierarchical_level, node_id_to_community_id, unique_id_to_entity)
         for hierarchical_level, node_id_to_community_id in hierarchical_communities.items()
     ]
 
     # store the index
     index = {
         "entities": entities,
-        "entity_summaries": unique_entities,
+        "entity_summaries": unique_id_to_entity,
         "hierarchical_communities": summarized_communities,
     }
 
