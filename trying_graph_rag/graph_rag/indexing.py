@@ -5,7 +5,6 @@ import random
 from pathlib import Path
 
 import networkx as nx
-import ollama
 from graspologic.partition import hierarchical_leiden
 from tqdm import tqdm
 from transformers import AutoTokenizer
@@ -18,7 +17,7 @@ from trying_graph_rag.graph_rag.types import (
     SummarizedCommunity,
     SummarizedUniqueEntity,
 )
-from trying_graph_rag.utils import flatten
+from trying_graph_rag.utils import flatten, generate_ollama_response
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -41,9 +40,6 @@ tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b-it")
 SUMMARIZA_ENTITIES_PROMPT_LENGTH = len(
     tokenizer(SUMMARIZE_ENTITIES_PROMPT.format(entity_name="", description_list=""))["input_ids"]
 )
-
-
-
 
 
 def extract_entities_and_relations(
@@ -107,17 +103,15 @@ def extract_entities_and_relations(
 
         return entities, relationships
 
-    ollama_response = ollama.generate(
-        model="gemma2:2b",
+    ollama_response = generate_ollama_response(
         prompt=ENTITIES_AND_RELATIONSHIPS_EXTRACTION_PROMPT.format(
             input_text=document,
             entity_types=str(entity_types)[1:-1],
             tuple_delimiter=tuple_delimiter,
             record_delimiter=record_delimiter,
             completion_delimiter=completion_delimiter,
-        ),
-        options={"temperature": 0},
-    )["response"]
+        )
+    )
 
     logger.info(f"Generated entities and relationships: {ollama_response}")
     return parse_output(ollama_response, tuple_delimiter, record_delimiter, completion_delimiter)
@@ -144,11 +138,9 @@ def summarize_grouped_entities(entities: list[Entity]) -> SummarizedUniqueEntity
         selected_descriptions.append(description)
 
     concatenated_descriptions = ", ".join(selected_descriptions)
-    ollama_response = ollama.generate(
-        model="gemma2:2b",
+    ollama_response = generate_ollama_response(
         prompt=SUMMARIZE_ENTITIES_PROMPT.format(entity_name=entity_name, description_list=concatenated_descriptions),
-        options={"temperature": 0},
-    )["response"]
+    )
     logger.info(f"Generated entity summary: {ollama_response}")
     return SummarizedUniqueEntity(name=entity_name, type=entity_type, summary=ollama_response)
 
@@ -172,11 +164,9 @@ def format_communities_and_summarize(
         # TODO: for now we ignore relationship when creating community report, but we should include them
         concatenated_community_entities = ", ".join([entity.summary for entity in community_entities.values()])
 
-        ollama_response: str = ollama.generate(
-            model="gemma2:2b",
+        ollama_response: str = generate_ollama_response(
             prompt=COMMUNITY_REPORTS_PROMPT.format(community_entities=concatenated_community_entities),
-            options={"temperature": 0},
-        )["response"]
+        )
         logger.info(f"Generated community report: {ollama_response}")
 
         ollama_response = ollama_response.strip()
@@ -257,7 +247,7 @@ def create_graph(entities: list[SummarizedUniqueEntity], relationships: list[Rel
 
 def create_index(documents: list[str], entity_types: list[str], index_name: str = "index") -> None:
     # TODO: don't use the same index id (maybe use a timestamp)
-    
+
     _entities, _relationships = zip(
         *[extract_entities_and_relations(doc, entity_types) for doc in tqdm(documents, desc="Extracting entities")]
     )  # TODO: i think entities should keep track of original document??

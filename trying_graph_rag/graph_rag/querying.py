@@ -1,10 +1,8 @@
 import json
 from pathlib import Path
 
-import ollama
-
 from trying_graph_rag.graph_rag.types import GraphIndex, RelevantPointToQuery, SummarizedCommunity
-from trying_graph_rag.utils import flatten
+from trying_graph_rag.utils import flatten, generate_ollama_response
 
 PROMPT_DIR = Path(__file__).parent / "prompts"
 
@@ -31,11 +29,9 @@ def map_query_to_community(query: str, community_reports: list[SummarizedCommuni
     
     for community_report in community_reports:
         formatted_community_report = community_report.community_report.model_dump_json()  # just dump the community report to the prompt
-        ollama_response = ollama.generate(
-            model="gemma2:2b",
+        ollama_response = generate_ollama_response(
             prompt=MAP_PROMPT.format(query=query, community_report=formatted_community_report),
-            options={"temperature": 0},
-        )["response"]
+        )
         
         discovered_points = parse_output(ollama_response)
         
@@ -52,16 +48,14 @@ def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery]
     top_n_pairs = sorted_pairs[:top_n]  # TODO: make this customizable?
     
     # TODO: maybe add community information as well (right now, we are only using the partial answers)
-    concatenated_partial_answeres = "\n".join([relevant_point.model_dump_json() for relevant_point in top_n_pairs])
+    concatenated_relevant_points = "\n".join([relevant_point.model_dump_json() for relevant_point in top_n_pairs])
     
-    ollama_response = ollama.generate(
-        model="gemma2:2b",
+    ollama_response = generate_ollama_response(
         prompt=REDUCTION_PROMPT.format(
             query=query,
-            community_reports=concatenated_partial_answeres,
+            relevant_points=concatenated_relevant_points,
         ),
-        options={"temperature": 0},
-    )["response"]
+    )
     
     return ollama_response
 
