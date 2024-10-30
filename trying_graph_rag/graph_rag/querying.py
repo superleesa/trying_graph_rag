@@ -66,7 +66,7 @@ def map_query_to_community(
     return (community_report, [])
 
 
-def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery], top_n: int) -> tuple[str, str]:
+def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery], top_n: int, num_trials: int = 5) -> tuple[str, str]:
     """
     - sort the community_relevance_pairs by relevance score
     - combine the summaries of the top n communities together to form the final answer
@@ -103,7 +103,15 @@ def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery]
     )
     logger.info(f"Generated final answer: {ollama_response}")
 
-    return parse_output(ollama_response)
+    for _ in range(num_trials):
+        try:
+            return parse_output(ollama_response)
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            continue
+    
+    logger.error(f"Failed to generate final answer: {query}")
+    return "", "No answer found"
 
 
 def query_index(query: str, index: GraphIndex, hierarchy_level: int = 0, top_n: int = 5) -> tuple[str, str]:
