@@ -52,9 +52,6 @@ SUMMARIZA_ENTITIES_PROMPT_LENGTH = len(
 def extract_entities_and_relations(
     document: str,
     entity_types: list[str],
-    tuple_delimiter: str = r"|",
-    record_delimiter: str = "\n",
-    completion_delimiter: str = "###END###",
 ) -> tuple[list[Entity], list[Relationship]]:
     """
     use the generate_relationships.txt as a prompt
@@ -64,31 +61,52 @@ def extract_entities_and_relations(
         output = output.strip()
         if output.startswith("```json") and output.endswith("```"):
             output = output[7:-3].strip()
-        output_json = json.loads(output)
+        
+        output_records = output.split("\n")
         
         unique_entities: dict[str, Entity] = {}
         relationships: list[Relationship] = []
         
-        for output_record in output_json["entities"]:
-            entity = Entity(**output_record)
-            if entity.name in unique_entities:
-                # skip duplicate entities
+        # json line format is better because even if one record is invalid, 
+        # the rest can still be parsed
+        parsing_failed_counts = 0
+        for output_record in output_records:
+            if not output_record.strip():
                 continue
-            unique_entities[entity.name] = entity
-        
-        for output_record in output_json["relationships"]:
-            relationship = Relationship(**output_record)
             
-            # if source / target entity is missing, add it as an entity, and use the relationship description as the entity description
-            # this is not ideal but it's better than ignoring the relationship
-            if relationship.source_entity not in unique_entities:
-                entity = Entity(name=relationship.source_entity, type="UNKNOWN", description=relationship.description)
-                unique_entities[relationship.source_entity] = entity
-            if relationship.target_entity not in unique_entities:
-                entity = Entity(name=relationship.target_entity, type="UNKNOWN", description=relationship.description)
-                unique_entities[relationship.target_entity] = entity
+            try:
+                output_record_json = json.loads(output_record)
+                
+                if output_record_json["record_type"] == "entity":
+                    output_record_json.pop("record_type")
+                    entity = Entity(**output_record_json)
+                    if entity.name in unique_entities:
+                        # skip duplicate entities
+                        continue
+                    unique_entities[entity.name] = entity
+                elif output_record_json["record_type"] == "relationship":
+                    output_record_json.pop("record_type")
+                    relationship = Relationship(**output_record_json)
+                    
+                    # if source / target entity is missing, add it as an entity, and use the relationship description as the entity description
+                    # this is not ideal but it's better than ignoring the relationship
+                    if relationship.source_entity not in unique_entities:
+                        entity = Entity(name=relationship.source_entity, type="UNKNOWN", description=relationship.description)
+                        unique_entities[relationship.source_entity] = entity
+                    if relationship.target_entity not in unique_entities:
+                        entity = Entity(name=relationship.target_entity, type="UNKNOWN", description=relationship.description)
+                        unique_entities[relationship.target_entity] = entity
+                    
+                    relationships.append(relationship)
+                else:
+                    raise ValueError(f"Unknown record type: {output_record_json['record_type']}")
+            except Exception as e:
+                logger.error(f"Error parsing json: {e}")
+                parsing_failed_counts += 1
+                continue
             
-            relationships.append(relationship)
+            if parsing_failed_counts > 0:
+                logger.error(f"Failed to parse {parsing_failed_counts} records")
         
         return list(unique_entities.values()), relationships
 
@@ -96,7 +114,7 @@ def extract_entities_and_relations(
         prompt=safe_format_prompt(ENTITIES_AND_RELATIONSHIPS_EXTRACTION_PROMPT, input_text=document, entity_types=entity_types),
     )
     logger.info(f"Generated entities and relationships: {ollama_response}")
-    return parse_json_output(ollama_response, tuple_delimiter, record_delimiter, completion_delimiter)
+    return parse_json_output(ollama_response)
 
 
 def summarize_grouped_entities(entities: list[Entity]) -> SummarizedUniqueEntity:
