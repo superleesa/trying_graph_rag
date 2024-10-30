@@ -3,7 +3,12 @@ import pickle
 import random
 from pathlib import Path
 
-import json5 as json  # use json5 for less strict json parsing (e.g. allows single quotes, trialing commas)
+try:
+    import pyjson5 as json  # use json5 for less strict json parsing (e.g. allows single quotes, trialing commas)
+except Exception:
+    # setuptools install `pyjson5` as `json5` (but poetry installs it as `pyjson5`)
+    import json5 as json
+
 import networkx as nx
 from graspologic.partition import hierarchical_leiden
 from tqdm import tqdm
