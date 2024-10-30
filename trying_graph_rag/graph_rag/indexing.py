@@ -22,7 +22,7 @@ from trying_graph_rag.graph_rag.types import (
     SummarizedCommunity,
     SummarizedUniqueEntity,
 )
-from trying_graph_rag.utils import flatten, generate_ollama_response
+from trying_graph_rag.utils import flatten, generate_ollama_response, safe_format_prompt
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -60,102 +60,43 @@ def extract_entities_and_relations(
     use the generate_relationships.txt as a prompt
     and use the llm to generate the entities and relationships
     """
-
-    def parse_output(
-        output: str,
-        tuple_delimiter: str = r"|",
-        record_delimiter: str = "\n",
-        completion_delimiter: str = "###END###",
-    ) -> tuple[list[Entity], list[Relationship]]:
-        # sometimes there is extra content after the completion token so remove all of them
-        output = output[: output.find(completion_delimiter)]
-        output = output.strip().lstrip("```json").rstrip("```").strip()  # remove the json markdown
+    def parse_json_output(output: str) -> tuple[list[Entity], list[Relationship]]:
+        output = output.strip()
+        if output.startswith("```json") and output.endswith("```"):
+            output = output[7:-3].strip()
+        output_json = json.loads(output)
         
-        records = output.strip().split(record_delimiter)
-
-        entities: list[Entity] = []  # TODO: this is not really needed use `entity_name_to_entities` instead
+        unique_entities: dict[str, Entity] = {}
         relationships: list[Relationship] = []
-        entity_name_to_entities: dict[str, Entity] = {}
-
-        for idx, record in enumerate(records):
-            record = record.strip().lstrip("(").rstrip(")")
-            # skip empty records
-            if not record:
-                continue
-
-            record_content = [record_field.strip().strip("'\"") for record_field in record.split(tuple_delimiter)]
-
-            # skip empty records pt2
-            if not len(record_content) or not all(record_content):
-                continue
-
-            record_type = record_content[0]
-            if record_type not in ["entity", "relationship"]:
-                # there are cases where the llm generates invalid completion delimiter
-                # just ignore them
-                logger.warning(f"WARNING: Invalid record type: {record_content}")
-                break
-
-            if record_type == "entity" and len(record_content) == 4:
-                entity_name = record_content[1].strip()
-
+        
+        for output_record in output_json["entities"]:
+            entity = Entity(**output_record)
+            if entity.name in unique_entities:
                 # skip duplicate entities
-                if entity_name in entity_name_to_entities:
-                    if entity_name_to_entities[entity_name].type == "UNKNOWN":
-                        # an empty entity might have been added already from relationship
-                        entity_name_to_entities[entity_name].type = record_content[2]
-                        entity_name_to_entities[entity_name].description = record_content[3]
-                    continue
-
-                entity = Entity(name=entity_name, type=record_content[2], description=record_content[3])
-                entities.append(entity)
-                entity_name_to_entities[entity_name] = entity
-            elif record_type == "relationship" and len(record_content) == 5:
-                try:
-                    relationship_strength = int(record_content[4])
-                except ValueError:
-                    raise ValueError("Invalid relationship strength")
-
-                source_entity_name, target_entity_name, description = (
-                    record_content[1],
-                    record_content[2],
-                    record_content[3],
-                )
-                # if source / target entity is missing, add it as an entity, and use the relationship description as the entity description
-                # this is not ideal but it's better than ignoring the relationship
-                if source_entity_name not in entity_name_to_entities:
-                    entity = Entity(name=source_entity_name, type="UNKNOWN", description=description)
-                    entities.append(entity)
-                    entity_name_to_entities[source_entity_name] = entity_name_to_entities
-                if target_entity_name not in entity_name_to_entities:
-                    entity = Entity(name=target_entity_name, type="UNKNOWN", description=description)
-                    entities.append(entity)
-                    entity_name_to_entities[target_entity_name] = entity
-
-                relationship = Relationship(
-                    source_entity=source_entity_name,
-                    target_entity=target_entity_name,
-                    description=description,
-                    strength=relationship_strength,
-                )
-                relationships.append(relationship)
-            else:
-                logger.info(f"Failed to parse invalid record format: {record}")
-
-        return entities, relationships
+                continue
+            unique_entities[entity.name] = entity
+        
+        for output_record in output_json["relationships"]:
+            relationship = Relationship(**output_record)
+            
+            # if source / target entity is missing, add it as an entity, and use the relationship description as the entity description
+            # this is not ideal but it's better than ignoring the relationship
+            if relationship.source_entity not in unique_entities:
+                entity = Entity(name=relationship.source_entity, type="UNKNOWN", description=relationship.description)
+                unique_entities[relationship.source_entity] = entity
+            if relationship.target_entity not in unique_entities:
+                entity = Entity(name=relationship.target_entity, type="UNKNOWN", description=relationship.description)
+                unique_entities[relationship.target_entity] = entity
+            
+            relationships.append(relationship)
+        
+        return list(unique_entities.values()), relationships
 
     ollama_response = generate_ollama_response(
-        prompt=ENTITIES_AND_RELATIONSHIPS_EXTRACTION_PROMPT.format(
-            input_text=document,
-            entity_types=str(entity_types)[1:-1],
-            tuple_delimiter=tuple_delimiter,
-            record_delimiter=record_delimiter,
-            completion_delimiter=completion_delimiter,
-        )
+        prompt=safe_format_prompt(ENTITIES_AND_RELATIONSHIPS_EXTRACTION_PROMPT, input_text=document, entity_types=entity_types),
     )
-
     logger.info(f"Generated entities and relationships: {ollama_response}")
-    return parse_output(ollama_response, tuple_delimiter, record_delimiter, completion_delimiter)
+    return parse_json_output(ollama_response, tuple_delimiter, record_delimiter, completion_delimiter)
 
 
 def summarize_grouped_entities(entities: list[Entity]) -> SummarizedUniqueEntity:

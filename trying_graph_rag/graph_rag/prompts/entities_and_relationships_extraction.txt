@@ -8,25 +8,24 @@ Extract entities of specified types from the text and identify relationships amo
      - **entity_name**: Capitalized name
      - **entity_type**: One of [{entity_types}]
      - **entity_description**: Description of attributes and activities
-   - Format:
-     ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
-   - Note: detect all entities in this step, as entities that are not detected in this step cannot be used as a soure / target entity of a relationship
+   - Collect all entities in a list called `"entities"`.
+   - **Note:** Detect all entities in this step, as entities not detected here cannot be used in relationships.
 
 2. **Relationship Identification:**
    - For each pair of related entities:
      - **source_entity**: Name from step 1
      - **target_entity**: Name from step 1
      - **relationship_description**: Explanation of their connection
-     - **relationship_strength**: Numeric score of relationship strength
-   - Format:
-     ("relationship"{tuple_delimiter}<source_entity>{tuple_delimiter}<target_entity>{tuple_delimiter}<relationship_description>{tuple_delimiter}<relationship_strength>)
-   - Note: Do NOT use entities that were not extracted in the first step as source/target entity. 
+     - **relationship_strength**: Numeric score of relationship strength (**do not forget this**)
+   - Collect all relationships in a list called `"relationships"`.
+   - **Note:** Do **not** use entities that were not extracted in the first step as source or target entities.
 
 3. **Output:**
-   - Provide a single list of all entities and relationships.
-   - Use **{record_delimiter}** as the list delimiter.
-   - End with {completion_delimiter}
-   - You don't need explanation (only the list of entities / relationships is enough).
+   - Provide a single JSON object with two keys: `"entities"` and `"relationships"`.
+   - `"entities"`: List of entity objects.
+   - `"relationships"`: List of relationship objects.
+   - **You do not need to provide explanations** (only the lists of entities and relationships).
+   - Output the JSON object as plain text.
 
 ---
 
@@ -34,32 +33,76 @@ Extract entities of specified types from the text and identify relationships amo
 
 *Example 1:*
 
-Entity_types: [person, technology, mission, organization, location]
+**Entity_types:** [person, technology, mission, organization, location]
 
-Text:
-*While Alex clenched his jaw, the buzz of frustration...*
+**Text:**
 
-Output:
-("entity"{tuple_delimiter}"Alex"{tuple_delimiter}"person"{tuple_delimiter}"Alex is frustrated and observant of others."){record_delimiter}
-("entity"{tuple_delimiter}"Taylor"{tuple_delimiter}"person"{tuple_delimiter}"Taylor shows authoritarian certainty..."){record_delimiter}
-("relationship"{tuple_delimiter}"Alex"{tuple_delimiter}"Taylor"{tuple_delimiter}"Alex is affected by Taylor's attitude."{tuple_delimiter}7){completion_delimiter}
+*While Alex clenched his jaw, the buzz of frustration dull against the backdrop of Taylor's authoritarian certainty...*
 
----
+**Output:**
+{
+  "entities": [
+    {
+      "entity_name": "Alex",
+      "entity_type": "person",
+      "entity_description": "Alex is frustrated and observant of others."
+    },
+    {
+      "entity_name": "Taylor",
+      "entity_type": "person",
+      "entity_description": "Taylor shows authoritarian certainty and a change in perspective."
+    },
+    {
+      "entity_name": "Jordan",
+      "entity_type": "person",
+      "entity_description": "Jordan shares a commitment to discovery and interacts with Taylor."
+    },
+    {
+      "entity_name": "Cruz",
+      "entity_type": "person",
+      "entity_description": "Cruz is associated with control and order, influencing others."
+    },
+    {
+      "entity_name": "The Device",
+      "entity_type": "technology",
+      "entity_description": "A device with potential game-changing implications."
+    }
+  ],
+  "relationships": [
+    {
+      "source_entity": "Alex",
+      "target_entity": "Taylor",
+      "relationship_description": "Alex is affected by Taylor's attitude.",
+      "relationship_strength": 7
+    },
+    {
+      "source_entity": "Alex",
+      "target_entity": "Jordan",
+      "relationship_description": "Alex and Jordan share a commitment to discovery.",
+      "relationship_strength": 6
+    },
+    {
+      "source_entity": "Taylor",
+      "target_entity": "Jordan",
+      "relationship_description": "Taylor and Jordan have a significant interaction about the device.",
+      "relationship_strength": 8
+    },
+    {
+      "source_entity": "Jordan",
+      "target_entity": "Cruz",
+      "relationship_description": "Jordan's actions are in rebellion against Cruz's vision.",
+      "relationship_strength": 5
+    },
+    {
+      "source_entity": "Taylor",
+      "target_entity": "The Device",
+      "relationship_description": "Taylor shows reverence towards the device.",
+      "relationship_strength": 9
+    }
+  ]
+}
 
-*Example 2:*
-
-Entity_types: [person, technology, mission, organization, location]
-
-Text:
-*They were no longer mere operatives...*
-
-Output:
-("entity"{tuple_delimiter}"Operation: Dulce"{tuple_delimiter}"mission"{tuple_delimiter}"A mission that has evolved to interact and prepare."){record_delimiter}
-("relationship"{tuple_delimiter}"The team"{tuple_delimiter}"Operation: Dulce"{tuple_delimiter}"The team is involved in Operation: Dulce."{tuple_delimiter}9){completion_delimiter}
-
----
-
-**Real Data:**
+**Real Data**
 
 Entity_types: {entity_types}
 

@@ -1,10 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, AliasChoices, Field
 
 
 class Entity(BaseModel):
-    name: str
-    type: str
-    description: str
+    name: str = Field(validation_alias=AliasChoices("entity_name", "name"))
+    type: str = Field(validation_alias=AliasChoices("entity_type", "type"))
+    description: str = Field(validation_alias=AliasChoices("entity_description", "description"))
 
 
 class SummarizedUniqueEntity(BaseModel):
@@ -16,8 +16,8 @@ class SummarizedUniqueEntity(BaseModel):
 class Relationship(BaseModel):
     source_entity: str  # entity name
     target_entity: str
-    description: str
-    strength: int
+    description: str = Field(validation_alias=AliasChoices("relationship_description", "description"))
+    strength: int = Field(validation_alias=AliasChoices("relationship_strength", "strength"))
 
 
 class Findings(BaseModel):

@@ -36,3 +36,15 @@ def filter_non_fittable_elements(elements: list[str], max_length: int, element_d
         else:
             break
     return filtered_elements
+
+
+class SafeDict(dict):
+    def __missing__(self, key):
+        return "{" + key + "}"
+
+
+def safe_format_prompt(prompt: str, **kwargs) -> str:
+    """
+    Format a prompt string with a dictionary of values, but ignore missing keys
+    """
+    return prompt.format_map(SafeDict(**kwargs))
