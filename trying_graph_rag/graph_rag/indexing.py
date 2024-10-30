@@ -4,6 +4,7 @@ import pickle
 import random
 from pathlib import Path
 
+import json5 as json  # use json5 for less strict json parsing (e.g. allows single quotes, trialing commas)
 import networkx as nx
 from graspologic.partition import hierarchical_leiden
 from tqdm import tqdm
@@ -62,6 +63,7 @@ def extract_entities_and_relations(
     ) -> tuple[list[Entity], list[Relationship]]:
         # sometimes there is extra content after the completion token so remove all of them
         output = output[: output.find(completion_delimiter)]
+        output = output.strip().lstrip("```json").rstrip("```").strip()  # remove the json markdown
         
         records = output.strip().split(record_delimiter)
 
