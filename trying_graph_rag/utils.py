@@ -3,7 +3,7 @@ from ollama import Options
 from transformers import AutoTokenizer
 
 tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b-it")
-OLLAMA_GENERATION_CONFIG = Options(temperature=0, seed=123456789, top_k=1, top_p=0.4, repeat_penalty=1.3)
+OLLAMA_GENERATION_CONFIG = Options(temperature=0, seed=123456789, top_k=1, repeat_penalty=1.2)
 
 def generate_ollama_response(prompt: str) -> str:
     return ollama.generate(
