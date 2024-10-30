@@ -30,6 +30,8 @@ file_handler = logging.FileHandler("generated_contents.log")
 file_handler.setLevel(logging.INFO)
 logger.addHandler(file_handler)
 
+NUM_MAX_TRIALS = 3
+
 PROMPT_DIR = Path(__file__).parent / "prompts"
 
 with open(PROMPT_DIR / "entities_and_relationships_extraction.txt") as file:
@@ -203,20 +205,33 @@ def format_communities_and_summarize(
         # TODO: for now we ignore relationship when creating community report, but we should include them
         concatenated_community_entities = ", ".join([entity.summary for entity in community_entities.values()])
 
-        ollama_response: str = generate_ollama_response(
-            prompt=COMMUNITY_REPORTS_PROMPT.format(community_entities=concatenated_community_entities),
-        )
-        logger.info(f"Generated community report: {ollama_response}")
+        # we retry generating the community report if it fails
+        # (usually because of json formatting issues)
+        # hoing that we get better sample from the llm
+        num_trials = 0
+        while num_trials < NUM_MAX_TRIALS:
+            try:
+                ollama_response: str = generate_ollama_response(
+                    prompt=COMMUNITY_REPORTS_PROMPT.format(community_entities=concatenated_community_entities),
+                )
+                logger.info(f"Generated community report: {ollama_response}")
 
-        ollama_response = ollama_response.strip()
-        if ollama_response.startswith("```json") and ollama_response.endswith("```"):
-            ollama_response = ollama_response[7:-3].strip()
+                ollama_response = ollama_response.strip()
+                if ollama_response.startswith("```json") and ollama_response.endswith("```"):
+                    ollama_response = ollama_response[7:-3].strip()
 
-        community_report = CommunityReport(**json.loads(ollama_response))
-        formatted_community = SummarizedCommunity(
-            community_id=community_id, hierachy_level=hierarchy_level, community_report=community_report
-        )
-        formatted_communities.append(formatted_community)
+                community_report = CommunityReport(**json.loads(ollama_response))
+            except Exception as e:
+                logger.error(f"Error generating community report (trial {num_trials}): {e}")
+                num_trials += 1
+            else:
+                formatted_community = SummarizedCommunity(
+                    community_id=community_id, hierachy_level=hierarchy_level, community_report=community_report
+                )
+                formatted_communities.append(formatted_community)
+                break
+        else:
+            logger.error(f"Tried {num_trials+1} but Failed to generate community report for community: {community_id}")
 
     return formatted_communities
 
