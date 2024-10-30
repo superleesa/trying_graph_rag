@@ -45,7 +45,7 @@ SUMMARIZA_ENTITIES_PROMPT_LENGTH = len(
 def extract_entities_and_relations(
     document: str,
     entity_types: list[str],
-    tuple_delimiter: str = r"<>",
+    tuple_delimiter: str = r"|",
     record_delimiter: str = "\n",
     completion_delimiter: str = "###END###",
 ) -> tuple[list[Entity], list[Relationship]]:
@@ -56,7 +56,7 @@ def extract_entities_and_relations(
 
     def parse_output(
         output: str,
-        tuple_delimiter: str = r"<>",
+        tuple_delimiter: str = r"|",
         record_delimiter: str = "\n",
         completion_delimiter: str = "###END###",
     ) -> tuple[list[Entity], list[Relationship]]:
