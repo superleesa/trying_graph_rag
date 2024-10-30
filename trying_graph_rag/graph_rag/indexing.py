@@ -140,7 +140,7 @@ def extract_entities_and_relations(
                 )
                 relationships.append(relationship)
             else:
-                print(f"Invalid record format: {record}")
+                logger.info(f"Failed to parse invalid record format: {record}")
 
         return entities, relationships
 
