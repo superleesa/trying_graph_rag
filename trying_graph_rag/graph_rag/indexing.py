@@ -1,4 +1,3 @@
-import json
 import logging
 import pickle
 import random
@@ -87,10 +86,8 @@ def extract_entities_and_relations(
             if record_type not in ["entity", "relationship"]:
                 # there are cases where the llm generates invalid completion delimiter
                 # just ignore them
-                if idx == len(records) - 1:
-                    logger.warning(f"Invalid record type (at the end of completion): {record_content}")
-                    break
-                raise ValueError(f"Invalid record type: {record_content}")
+                logger.warning(f"WARNING: Invalid record type: {record_content}")
+                break
 
             if record_type == "entity" and len(record_content) == 4:
                 entity_name = record_content[1].strip()
