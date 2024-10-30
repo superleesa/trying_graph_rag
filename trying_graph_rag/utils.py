@@ -1,3 +1,4 @@
+import re
 from typing import TypeVar
 
 import ollama
@@ -38,13 +39,28 @@ def filter_non_fittable_elements(elements: list[str], max_length: int, element_d
     return filtered_elements
 
 
-class SafeDict(dict):
-    def __missing__(self, key):
-        return "{" + key + "}"
+class SafeFormatter:
+    """
+    Safe string formatter that does not raise KeyError if key is missing.
+    Ported from llama index
+    at: https://github.com/run-llama/llama_index/blob/main/llama-index-core/llama_index/core/prompts/utils.py
+    """
+
+    def __init__(self, format_dict: dict[str, str] | None = None):
+        self.format_dict = format_dict or {}
+
+    def format(self, format_string: str) -> str:
+        return re.sub(r"\{([^{}]+)\}", self._replace_match, format_string)
+
+    def parse(self, format_string: str) -> list[str]:
+        return re.findall(r"\{([^{}]+)\}", format_string)
+
+    def _replace_match(self, match: re.Match) -> str:
+        key = match.group(1)
+        return str(self.format_dict.get(key, match.group(0)))
 
 
-def safe_format_prompt(prompt: str, **kwargs) -> str:
-    """
-    Format a prompt string with a dictionary of values, but ignore missing keys
-    """
-    return prompt.format_map(SafeDict(**kwargs))
+def safe_format_prompt(prompt: str, **kwargs: str) -> str:
+    """Format a string with kwargs."""
+    formatter = SafeFormatter(format_dict=kwargs)
+    return formatter.format(prompt)
