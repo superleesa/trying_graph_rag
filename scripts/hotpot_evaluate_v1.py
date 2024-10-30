@@ -1,9 +1,10 @@
-import sys
-import ujson as json
 import re
 import string
+import sys
 from collections import Counter
-import pickle
+
+import ujson as json
+
 
 def normalize_answer(s):
 
@@ -94,11 +95,7 @@ def eval(prediction_file, gold_file):
         if cur_id not in prediction['answer']:
             continue
         
-        prev_em = metrics['em']
         update_answer(metrics, prediction['answer'][cur_id], dp['answer'])
-        if metrics['em'] > prev_em:
-            print(cur_id)
-
     
     N = len(prediction["answer"])
     
