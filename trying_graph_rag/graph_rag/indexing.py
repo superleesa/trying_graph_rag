@@ -246,7 +246,7 @@ def create_communities(
     # hence, if the max_cluster_size is smaller than the number of nodes
     # there won't be any hirarchies (there would onbly be one level)
     if max_cluster_size is None:
-        max_cluster_size = 2 * (len(graph.nodes) // 3)
+        max_cluster_size = len(graph.nodes) // 4
         logger.info(f"Setting max_cluster_size to {max_cluster_size}")
 
     community_mapping = hierarchical_leiden(graph, max_cluster_size=max_cluster_size, random_seed=random_seed)
