@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import fire
 from tqdm import tqdm
@@ -13,6 +14,9 @@ def main(test_cases_json_path: str) -> None:
     
     for test_case in tqdm(test_cases, desc="Test cases"):
         document_id, documents = test_case["_id"], test_case["context"]
+        if Path(f"{document_id}.pickle").exists():
+            print("Index already exists, skipping...")
+            continue
         create_index(documents, DEFAULT_ENTITY_TYPES, index_name=document_id)
 
 if __name__ == '__main__':
