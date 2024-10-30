@@ -1,3 +1,5 @@
+from typing import TypeVar
+
 import ollama
 from ollama import Options
 from transformers import AutoTokenizer
@@ -13,7 +15,8 @@ def generate_ollama_response(prompt: str) -> str:
     )["response"]
 
 
-def flatten[T](tuple_list: tuple[list[T]]) -> list[T]:
+T = TypeVar("T")
+def flatten(tuple_list: tuple[list[T]]) -> list[T]:
     return [item for sublist in tuple_list for item in sublist]
 
 
