@@ -91,35 +91,17 @@ def eval(prediction_file, gold_file):
         'joint_em': 0, 'joint_f1': 0, 'joint_prec': 0, 'joint_recall': 0}
     for dp in gold:
         cur_id = dp['_id']
-        can_eval_joint = True
         if cur_id not in prediction['answer']:
-            print('missing answer {}'.format(cur_id))
-            can_eval_joint = False
-        else:
-            em, prec, recall = update_answer(
-                metrics, prediction['answer'][cur_id], dp['answer'])
-        if cur_id not in prediction['sp']:
-            print('missing sp fact {}'.format(cur_id))
-            can_eval_joint = False
-        else:
-            sp_em, sp_prec, sp_recall = update_sp(
-                metrics, prediction['sp'][cur_id], dp['supporting_facts'])
+            continue
+        
+        prev_em = metrics['em']
+        update_answer(metrics, prediction['answer'][cur_id], dp['answer'])
+        if metrics['em'] > prev_em:
+            print(cur_id)
 
-        if can_eval_joint:
-            joint_prec = prec * sp_prec
-            joint_recall = recall * sp_recall
-            if joint_prec + joint_recall > 0:
-                joint_f1 = 2 * joint_prec * joint_recall / (joint_prec + joint_recall)
-            else:
-                joint_f1 = 0.
-            joint_em = em * sp_em
-
-            metrics['joint_em'] += joint_em
-            metrics['joint_f1'] += joint_f1
-            metrics['joint_prec'] += joint_prec
-            metrics['joint_recall'] += joint_recall
-
-    N = len(gold)
+    
+    N = len(prediction["answer"])
+    
     for k in metrics.keys():
         metrics[k] /= N
 
