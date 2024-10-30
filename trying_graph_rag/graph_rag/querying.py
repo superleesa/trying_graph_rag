@@ -9,7 +9,7 @@ from trying_graph_rag.utils import filter_non_fittable_elements, flatten, genera
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-file_handler = logging.FileHandler("generated_contents.log")
+file_handler = logging.FileHandler("generated_contents_query.log")
 file_handler.setLevel(logging.INFO)
 logger.addHandler(file_handler)
 
@@ -27,30 +27,43 @@ DEFAULT_REDUCTION_PROMPT_LENGTH = len(REDUCTION_PROMPT.format(query="", relevant
 
 
 def map_query_to_community(
-    query: str, community_report: SummarizedCommunity
+    query: str, community_report: SummarizedCommunity, num_trials:int = 5,
 ) -> tuple[SummarizedCommunity, list[RelevantPointToQuery]]:
-    # for each community report, generate a partial answer using the query as context
-    # calculate the relevance score of the partial answer
-    # return a list of community reports with their relevance scores
-    def parse_output(ollama_response: str) -> list[RelevantPointToQuery]:
-        ollama_response = ollama_response.strip()
-        if ollama_response.startswith("```json") and ollama_response.endswith("```"):
-            ollama_response = ollama_response[7:-3].strip()
-        output_json = json.loads(ollama_response)
-        return [RelevantPointToQuery(**output_record) for output_record in output_json["points"]]
+    def map_query_to_community_wrapped(
+        query: str, community_report: SummarizedCommunity
+    ) -> tuple[SummarizedCommunity, list[RelevantPointToQuery]]:
+        # for each community report, generate a partial answer using the query as context
+        # calculate the relevance score of the partial answer
+        # return a list of community reports with their relevance scores
+        def parse_output(ollama_response: str) -> list[RelevantPointToQuery]:
+            ollama_response = ollama_response.strip()
+            if ollama_response.startswith("```json") and ollama_response.endswith("```"):
+                ollama_response = ollama_response[7:-3].strip()
+            output_json = json.loads(ollama_response)
+            return [RelevantPointToQuery(**output_record) for output_record in output_json["points"]]
 
-    # FIXME: this assumes that community report does not overflow the prompt length
-    formatted_community_report = (
-        community_report.community_report.model_dump_json()
-    )  # just dump the community report to the prompt
-    ollama_response = generate_ollama_response(
-        prompt=MAP_PROMPT.format(query=query, community_report=formatted_community_report),
-    )
-    logger.info(f"Generated relavant points: {ollama_response}")
+        # FIXME: this assumes that community report does not overflow the prompt length
+        formatted_community_report = (
+            community_report.community_report.model_dump_json()
+        )  # just dump the community report to the prompt
+        ollama_response = generate_ollama_response(
+            prompt=MAP_PROMPT.format(query=query, community_report=formatted_community_report),
+        )
+        logger.info(f"Generated relavant points: {ollama_response}")
 
-    discovered_points = parse_output(ollama_response)
+        discovered_points = parse_output(ollama_response)
 
-    return (community_report, discovered_points)
+        return (community_report, discovered_points)
+    
+    for _ in range(num_trials):
+        try:
+            return map_query_to_community_wrapped(query, community_report)
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            continue
+    
+    logger.error(f"Failed to map query to community: {query}")
+    return (community_report, [])
 
 
 def reduce_to_one_answer(query: str, relevant_points: list[RelevantPointToQuery], top_n: int) -> tuple[str, str]:
