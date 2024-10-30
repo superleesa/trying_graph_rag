@@ -21,3 +21,8 @@ poetry run python scripts/batch_index.py dataset/sampled_gold_data.json
 ```shell
 poetry run python scripts/batch_query.py dataset/sampled_gold_data.json . dataset/graph_rag_prediction.csv
 ```
+
+## Evaluation
+```shell
+poetry run python scripts/hotpot_evaluate_v1.py dataset/graph_rag_prediction_formatted.json dataset/sampled_gold_data.json
+```
