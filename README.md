@@ -10,5 +10,5 @@ poetry run python scripts/batch_index.py dataset/sampled_gold_data.json
 
 ## Querying
 ```shell
-poetry run python scripts/batch_query.py dataset/sampled_gold_data.json dataset/graph_rag_prediction.csv
+poetry run python scripts/batch_query.py dataset/sampled_gold_data.json . dataset/graph_rag_prediction.csv
 ```
